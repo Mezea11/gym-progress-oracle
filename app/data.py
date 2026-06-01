@@ -66,3 +66,53 @@ def get_current_dataset() -> pd.DataFrame:  # om det inte finns data, fallback k
         )
 
     return _current_dataset
+
+# Statistik för våra gympass
+
+
+def get_dataset_stats() -> dict:
+    df = get_current_dataset().copy()
+
+    # här räknar vi ut volym: vikt * reps * sets
+    df["volume"] = df["weight"] * df["reps"] * df["sets"]
+    # här använder vi epley formula för att räkna ut 1 rep max
+    df["estimated_1rm"] = df["weight"] * (1 + df["reps"] / 30)
+
+    # kolla raden med högst numeriskt värde i vikter
+    heaviest_row = df.loc[df["weight"].idxmax()]
+
+    total_volume_by_exercise = (  # räkna ut total vikt för varje enskild övning. gruppera övning med volym, summera och sortera i DESC order
+        df.groupby("exercise")["volume"]
+        .sum()
+        .sort_values(ascending=False)
+        .to_dict()
+    )
+
+    estimated_1rm_by_exercise = (  # våra 1 rep max. gruppera övning med 1 rep max, kolla maxvärde, sortera i DESC, runda av eventuella decimaler, skapa dictionary av objektet
+        df.groupby("exercise")["estimated_1rm"]
+        .max()
+        .sort_values(ascending=False)
+        .round(2)
+        .to_dict()
+    )
+
+    return {  # här returnerar vi statistik om vårt dataset. aritmetiska operationer som volym, tyngsta lyft, estimat på 1 rep max osv
+        "rows": len(df),
+        "exercise_count": df["exercise"].nunique(),
+        "exercises": sorted(df["exercise"].unique().tolist()),
+        "heaviest_lift": {
+            "exercise": heaviest_row["exercise"],
+            "weight": float(heaviest_row["weight"]),
+            "reps": int(heaviest_row["reps"]),
+            "sets": int(heaviest_row["sets"]),
+        },
+        "total_volume_by_exercise": {
+            exercise: float(volume)
+            for exercise, volume in total_volume_by_exercise.items()
+        },
+        "estimated_1rm_by_exercise": {
+            exercise: float(estimated_1rm)
+            for exercise, estimated_1rm in estimated_1rm_by_exercise.items()
+        },
+        "describe": df.describe().to_dict(),
+    }

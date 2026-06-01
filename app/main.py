@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile
 
-from app.data import upload_dataset
+from app.data import get_dataset_stats, upload_dataset
 
 app = FastAPI(
     title="Gym Progress Oracle",
@@ -20,3 +20,8 @@ def health_check() -> dict[str, str]:
 @app.post("/data/upload")
 def upload_data(file: UploadFile = File(...)) -> dict:
     return upload_dataset(file)
+
+
+@app.get("/data/stats")
+def data_stats() -> dict:
+    return get_dataset_stats()
