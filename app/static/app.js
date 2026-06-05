@@ -73,10 +73,14 @@ async function uploadCsv() {
     setStatus(
       uploadStatus,
       `Uppladdning klar. Rader: ${data.rows}, kolumner: ${data.columns.length}.`,
-      "success"
+      "success",
     );
   } catch (error) {
-    setStatus(uploadStatus, getApiError(error, "Kunde inte ladda upp filen."), "error");
+    setStatus(
+      uploadStatus,
+      getApiError(error, "Kunde inte ladda upp filen."),
+      "error",
+    );
   } finally {
     uploadButton.disabled = false;
   }
