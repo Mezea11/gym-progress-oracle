@@ -22,7 +22,7 @@ Projektet följer principen: **Pandas räknar, modellen formulerar**.
 - Pandas
 - Transformers (Hugging Face pipeline)
 - Uvicorn
-- Pytest (beroende finns, men testerna är för närvarande tomma)
+- Pytest
 
 ## Projektstruktur
 
@@ -193,7 +193,34 @@ Kör tester:
 uv run pytest
 ```
 
-Notering: testfilerna finns men är för närvarande tomma.
+Kör endast appens tester med verbose output:
+
+```powershell
+uv run pytest app/tests/ -v
+```
+
+## Testtäckning (KK2)
+
+Projektet innehåller tester för flera olika aspekter enligt KK2:
+
+- Kedjesteg i isolation i `app/tests/test_chain.py`:
+  - promptkontrakt och svarmarkörer,
+  - parser-extraktion mellan markörer,
+  - robust fallback vid prompt-läckage,
+  - fallback-logik för lägst/specifik/skillnad i estimerad 1RM.
+- Endpoints via FastAPI TestClient i `app/tests/test_endpoints.py`:
+  - `GET /health` returnerar 200,
+  - `POST /data/upload` med giltig CSV returnerar metadata,
+  - `POST /data/upload` med ogiltig fil returnerar 400,
+  - `GET /data/stats` utan dataset returnerar 404,
+  - `GET /data/stats` efter upload returnerar statistik.
+- Mockad modell/kedja i endpointtest:
+  - `/ai/ask` testas utan riktig modellnedladdning genom mockad chain-invoke,
+  - `/ai/ask` utan uppladdad data returnerar 404.
+
+Senaste körning lokalt:
+
+- `uv run pytest app/tests/ -v` -> 13 passed
 
 ## Kända begränsningar
 

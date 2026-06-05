@@ -32,6 +32,7 @@ class PromptBuilderOutput(BaseModel):  # färdig prompt ut från första steget
     question: str
     prompt: str
     facts_summary: str
+    stats: dict[str, Any]
 
 
 class LLMRunnerOutput(BaseModel):  # råtext från modellen
@@ -39,6 +40,7 @@ class LLMRunnerOutput(BaseModel):  # råtext från modellen
     raw_output: str
     model: str
     facts_summary: str
+    stats: dict[str, Any]
 
 
 class ResponseParserOutput(BaseModel):  # städat slutresultat
