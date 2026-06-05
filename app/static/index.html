@@ -26,8 +26,15 @@
         <h2>Statistik</h2>
         <div class="row">
           <button id="statsButton" type="button">Hämta statistik</button>
+          <button id="clearButton" type="button" class="danger-button">Rensa data</button>
         </div>
-        <pre id="statsOutput">Ingen statistik hämtad ännu.</pre>
+        <div class="row view-toggle" role="group" aria-label="Välj statistikvisning">
+          <button id="friendlyViewButton" type="button" class="toggle-button active">Lättläst</button>
+          <button id="jsonViewButton" type="button" class="toggle-button">JSON</button>
+        </div>
+        <p id="clearStatus" class="status" aria-live="polite"></p>
+        <div id="statsFriendlyOutput" class="stats-friendly">Ingen statistik hämtad ännu.</div>
+        <pre id="statsOutput" class="hidden">Ingen statistik hämtad ännu.</pre>
       </section>
 
       <section class="card">

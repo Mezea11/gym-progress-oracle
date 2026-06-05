@@ -3,12 +3,20 @@ const uploadButton = document.getElementById("uploadButton");
 const uploadStatus = document.getElementById("uploadStatus");
 
 const statsButton = document.getElementById("statsButton");
+const clearButton = document.getElementById("clearButton");
+const clearStatus = document.getElementById("clearStatus");
+const friendlyViewButton = document.getElementById("friendlyViewButton");
+const jsonViewButton = document.getElementById("jsonViewButton");
+const statsFriendlyOutput = document.getElementById("statsFriendlyOutput");
 const statsOutput = document.getElementById("statsOutput");
 
 const chatWindow = document.getElementById("chatWindow");
 const chatInput = document.getElementById("chatInput");
 const chatButton = document.getElementById("chatButton");
 const chatStatus = document.getElementById("chatStatus");
+
+let currentStatsData = null;
+let statsViewMode = "friendly";
 
 function setStatus(element, message, type = "") {
   element.textContent = message;
@@ -88,7 +96,12 @@ async function uploadCsv() {
 
 async function loadStats() {
   statsButton.disabled = true;
-  statsOutput.textContent = "Hämtar statistik...";
+
+  if (statsViewMode === "friendly") {
+    statsFriendlyOutput.textContent = "Hämtar statistik...";
+  } else {
+    statsOutput.textContent = "Hämtar statistik...";
+  }
 
   try {
     const response = await fetch("/data/stats");
@@ -98,11 +111,152 @@ async function loadStats() {
       throw data;
     }
 
-    statsOutput.textContent = JSON.stringify(data, null, 2);
+    currentStatsData = data;
+    renderStats();
   } catch (error) {
-    statsOutput.textContent = getApiError(error, "Kunde inte hämta statistik.");
+    const message = getApiError(error, "Kunde inte hämta statistik.");
+
+    currentStatsData = null;
+
+    if (statsViewMode === "friendly") {
+      statsFriendlyOutput.textContent = message;
+    } else {
+      statsOutput.textContent = message;
+    }
   } finally {
     statsButton.disabled = false;
+  }
+}
+
+function renderStats() {
+  if (!currentStatsData) {
+    statsFriendlyOutput.textContent = "Ingen statistik hämtad ännu.";
+    statsOutput.textContent = "Ingen statistik hämtad ännu.";
+    return;
+  }
+
+  statsOutput.textContent = JSON.stringify(currentStatsData, null, 2);
+  statsFriendlyOutput.innerHTML = buildFriendlyStatsHtml(currentStatsData);
+}
+
+function buildFriendlyStatsHtml(data) {
+  const rows = data.rows ?? "-";
+  const exerciseCount = data.exercise_count ?? "-";
+  const exercises = Array.isArray(data.exercises) ? data.exercises : [];
+
+  const heaviestLift = data.heaviest_lift ?? {};
+  const heaviestText = heaviestLift.exercise
+    ? `${heaviestLift.exercise} ${heaviestLift.weight} kg x ${heaviestLift.reps} reps`
+    : "-";
+
+  const oneRmEntries = Object.entries(data.estimated_1rm_by_exercise ?? {});
+  const oneRmTop = oneRmEntries.length > 0
+    ? oneRmEntries[0]
+    : null;
+
+  const volumeEntries = Object.entries(data.total_volume_by_exercise ?? {});
+  const volumeTop = volumeEntries.length > 0
+    ? volumeEntries[0]
+    : null;
+
+  const exercisesHtml = exercises.length > 0
+    ? exercises.map((exercise) => `<li>${exercise}</li>`).join("")
+    : "<li>Inga övningar hittades.</li>";
+
+  const oneRmHtml = oneRmEntries.length > 0
+    ? oneRmEntries
+        .map(([exercise, value]) => `<li>${exercise}: ${Number(value).toFixed(1)} kg</li>`)
+        .join("")
+    : "<li>Ingen 1RM-data hittades.</li>";
+
+  const volumeHtml = volumeEntries.length > 0
+    ? volumeEntries
+        .map(([exercise, value]) => `<li>${exercise}: ${Number(value).toFixed(1)} kg</li>`)
+        .join("")
+    : "<li>Ingen volymdata hittades.</li>";
+
+  return `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="label">Antal rader</span>
+        <span class="value">${rows}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">Unika övningar</span>
+        <span class="value">${exerciseCount}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">Tyngsta lyft</span>
+        <span class="value">${heaviestText}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">Högst estimerad 1RM</span>
+        <span class="value">${oneRmTop ? `${oneRmTop[0]} (${Number(oneRmTop[1]).toFixed(1)} kg)` : "-"}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">Högst total volym</span>
+        <span class="value">${volumeTop ? `${volumeTop[0]} (${Number(volumeTop[1]).toFixed(1)} kg)` : "-"}</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <span class="label">Övningar i datan</span>
+      <ul class="stat-list">${exercisesHtml}</ul>
+    </div>
+
+    <div class="stat-card">
+      <span class="label">Estimerad 1RM per övning</span>
+      <ul class="stat-list">${oneRmHtml}</ul>
+    </div>
+
+    <div class="stat-card">
+      <span class="label">Total volym per övning</span>
+      <ul class="stat-list">${volumeHtml}</ul>
+    </div>
+  `;
+}
+
+function setStatsView(mode) {
+  statsViewMode = mode;
+
+  const isFriendly = mode === "friendly";
+
+  friendlyViewButton.classList.toggle("active", isFriendly);
+  jsonViewButton.classList.toggle("active", !isFriendly);
+
+  statsFriendlyOutput.classList.toggle("hidden", !isFriendly);
+  statsOutput.classList.toggle("hidden", isFriendly);
+
+  renderStats();
+}
+
+async function clearData() {
+  clearButton.disabled = true;
+  setStatus(clearStatus, "Rensar data...", "");
+
+  try {
+    const response = await fetch("/data/clear", {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw data;
+    }
+
+    setStatus(
+      clearStatus,
+      `Datan rensad. Borttagna rader: ${data.rows_removed}.`,
+      "success",
+    );
+    currentStatsData = null;
+    renderStats();
+    chatStatus.textContent = "";
+  } catch (error) {
+    setStatus(clearStatus, getApiError(error, "Kunde inte rensa datan."), "error");
+  } finally {
+    clearButton.disabled = false;
   }
 }
 
@@ -151,6 +305,9 @@ async function askAi() {
 
 uploadButton.addEventListener("click", uploadCsv);
 statsButton.addEventListener("click", loadStats);
+clearButton.addEventListener("click", clearData);
+friendlyViewButton.addEventListener("click", () => setStatsView("friendly"));
+jsonViewButton.addEventListener("click", () => setStatsView("json"));
 chatButton.addEventListener("click", askAi);
 
 chatInput.addEventListener("keydown", (event) => {
@@ -159,3 +316,5 @@ chatInput.addEventListener("keydown", (event) => {
     askAi();
   }
 });
+
+setStatsView("friendly");

@@ -190,6 +190,35 @@ Exempel svar:
 
 Notering: datan sparas i `app/gym_progress.db` och finns kvar tills du laddar upp ny CSV eller kör `DELETE /data/clear`.
 
+## Exempelprompter till AI
+
+Använd dessa frågor i chatten för att snabbt komma igång.
+
+Basfrågor:
+
+- `Vilken övning har högst estimerad 1RM?`
+- `Vilken övning har lägst estimerad 1RM?`
+- `Vilken övning har högst total volym?`
+- `Vilket är mitt tyngsta enskilda lyft?`
+
+Övningsspecifika frågor:
+
+- `Vad är estimerad 1RM i squat?`
+- `Vad är estimerad 1RM i deadlift?`
+- `Vad är total volym i bench press?`
+
+Jämförelsefrågor:
+
+- `Jämför estimerad 1RM mellan squat och deadlift.`
+- `Hur stor är skillnaden i estimerad 1RM mellan deadlift och squat?`
+- `Rangordna övningarna efter estimerad 1RM.`
+
+Frågor utanför datat (för att testa fallback):
+
+- `Vad är min VO2max?`
+- `Hur många kalorier bränner jag per pass?`
+- `Kan du förutspå min 1RM om tre månader?`
+
 ## Hur AI-kedjan fungerar
 
 Kedjan definieras i `app/chain/pipeline.py`:

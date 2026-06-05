@@ -65,6 +65,10 @@ body {
   flex-wrap: wrap;
 }
 
+.view-toggle {
+  margin-top: 0.85rem;
+}
+
 input[type="file"],
 input[type="text"] {
   background: #0e1622;
@@ -96,6 +100,20 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.danger-button {
+  background: linear-gradient(180deg, #ff8f8f, #cf5050);
+}
+
+.toggle-button {
+  background: linear-gradient(180deg, #7a8ea6, #4f6074);
+  color: #eaf1fb;
+}
+
+.toggle-button.active {
+  background: linear-gradient(180deg, #9ae1ff, #58aace);
+  color: #082030;
+}
+
 .status {
   min-height: 1.2rem;
   color: var(--muted);
@@ -120,6 +138,50 @@ pre {
   word-break: break-word;
   max-height: 280px;
   overflow: auto;
+}
+
+.hidden {
+  display: none;
+}
+
+.stats-friendly {
+  margin: 0.85rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.6rem;
+}
+
+.stat-card {
+  background: #0f1824;
+  border: 1px solid #30435a;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+
+.stat-card .label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.2rem;
+}
+
+.stat-card .value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.stat-list {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.stat-list li {
+  margin: 0.2rem 0;
 }
 
 .chat-window {
