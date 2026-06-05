@@ -150,30 +150,35 @@ function buildFriendlyStatsHtml(data) {
     : "-";
 
   const oneRmEntries = Object.entries(data.estimated_1rm_by_exercise ?? {});
-  const oneRmTop = oneRmEntries.length > 0
-    ? oneRmEntries[0]
-    : null;
+  const oneRmTop = oneRmEntries.length > 0 ? oneRmEntries[0] : null;
 
   const volumeEntries = Object.entries(data.total_volume_by_exercise ?? {});
-  const volumeTop = volumeEntries.length > 0
-    ? volumeEntries[0]
-    : null;
+  const volumeTop = volumeEntries.length > 0 ? volumeEntries[0] : null;
 
-  const exercisesHtml = exercises.length > 0
-    ? exercises.map((exercise) => `<li>${exercise}</li>`).join("")
-    : "<li>Inga övningar hittades.</li>";
+  const exercisesHtml =
+    exercises.length > 0
+      ? exercises.map((exercise) => `<li>${exercise}</li>`).join("")
+      : "<li>Inga övningar hittades.</li>";
 
-  const oneRmHtml = oneRmEntries.length > 0
-    ? oneRmEntries
-        .map(([exercise, value]) => `<li>${exercise}: ${Number(value).toFixed(1)} kg</li>`)
-        .join("")
-    : "<li>Ingen 1RM-data hittades.</li>";
+  const oneRmHtml =
+    oneRmEntries.length > 0
+      ? oneRmEntries
+          .map(
+            ([exercise, value]) =>
+              `<li>${exercise}: ${Number(value).toFixed(1)} kg</li>`,
+          )
+          .join("")
+      : "<li>Ingen 1RM-data hittades.</li>";
 
-  const volumeHtml = volumeEntries.length > 0
-    ? volumeEntries
-        .map(([exercise, value]) => `<li>${exercise}: ${Number(value).toFixed(1)} kg</li>`)
-        .join("")
-    : "<li>Ingen volymdata hittades.</li>";
+  const volumeHtml =
+    volumeEntries.length > 0
+      ? volumeEntries
+          .map(
+            ([exercise, value]) =>
+              `<li>${exercise}: ${Number(value).toFixed(1)} kg</li>`,
+          )
+          .join("")
+      : "<li>Ingen volymdata hittades.</li>";
 
   return `
     <div class="stats-grid">
@@ -254,7 +259,11 @@ async function clearData() {
     renderStats();
     chatStatus.textContent = "";
   } catch (error) {
-    setStatus(clearStatus, getApiError(error, "Kunde inte rensa datan."), "error");
+    setStatus(
+      clearStatus,
+      getApiError(error, "Kunde inte rensa datan."),
+      "error",
+    );
   } finally {
     clearButton.disabled = false;
   }
