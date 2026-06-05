@@ -9,6 +9,9 @@ const friendlyViewButton = document.getElementById("friendlyViewButton");
 const jsonViewButton = document.getElementById("jsonViewButton");
 const statsFriendlyOutput = document.getElementById("statsFriendlyOutput");
 const statsOutput = document.getElementById("statsOutput");
+const metricRows = document.getElementById("metricRows");
+const metricExercises = document.getElementById("metricExercises");
+const metricTopLift = document.getElementById("metricTopLift");
 
 const chatWindow = document.getElementById("chatWindow");
 const chatInput = document.getElementById("chatInput");
@@ -45,9 +48,34 @@ function appendChatMessage(role, text) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+function updateHeroMetrics(data) {
+  if (!metricRows || !metricExercises || !metricTopLift) {
+    return;
+  }
+
+  if (!data) {
+    metricRows.textContent = "-";
+    metricExercises.textContent = "-";
+    metricTopLift.textContent = "-";
+    return;
+  }
+
+  metricRows.textContent = String(data.rows ?? "-");
+  metricExercises.textContent = String(data.exercise_count ?? "-");
+
+  const heaviestLift = data.heaviest_lift;
+
+  if (!heaviestLift || !heaviestLift.exercise) {
+    metricTopLift.textContent = "-";
+    return;
+  }
+
+  metricTopLift.textContent = `${heaviestLift.exercise} ${Number(heaviestLift.weight).toFixed(1)} kg`;
+}
+
 function clearChat() {
   chatWindow.replaceChildren();
-  setStatus(chatStatus, "Chatten är rensad.", "ok");
+  setStatus(chatStatus, "Chatten är rensad.", "success");
 }
 
 function getApiError(error, fallback) {
@@ -89,6 +117,9 @@ async function uploadCsv() {
       `Uppladdning klar. Rader: ${data.rows}, kolumner: ${data.columns.length}.`,
       "success",
     );
+    if (metricRows) {
+      metricRows.textContent = String(data.rows);
+    }
   } catch (error) {
     setStatus(
       uploadStatus,
@@ -138,11 +169,45 @@ function renderStats() {
   if (!currentStatsData) {
     statsFriendlyOutput.textContent = "Ingen statistik hämtad ännu.";
     statsOutput.textContent = "Ingen statistik hämtad ännu.";
+    updateHeroMetrics(null);
     return;
   }
 
   statsOutput.textContent = JSON.stringify(currentStatsData, null, 2);
   statsFriendlyOutput.innerHTML = buildFriendlyStatsHtml(currentStatsData);
+  wireAccordionControls();
+  updateHeroMetrics(currentStatsData);
+}
+
+function wireAccordionControls() {
+  const controls = statsFriendlyOutput.querySelector(".accordion-controls");
+
+  if (!controls) {
+    return;
+  }
+
+  const openAllButton = controls.querySelector('[data-action="open-all"]');
+  const closeAllButton = controls.querySelector('[data-action="close-all"]');
+
+  if (openAllButton) {
+    openAllButton.addEventListener("click", () => {
+      statsFriendlyOutput
+        .querySelectorAll("details.stat-accordion")
+        .forEach((section) => {
+          section.open = true;
+        });
+    });
+  }
+
+  if (closeAllButton) {
+    closeAllButton.addEventListener("click", () => {
+      statsFriendlyOutput
+        .querySelectorAll("details.stat-accordion")
+        .forEach((section) => {
+          section.open = false;
+        });
+    });
+  }
 }
 
 function buildFriendlyStatsHtml(data) {
@@ -186,6 +251,10 @@ function buildFriendlyStatsHtml(data) {
           .join("")
       : "<li>Ingen volymdata hittades.</li>";
 
+  const exerciseCountLabel = exercises.length;
+  const oneRmCountLabel = oneRmEntries.length;
+  const volumeCountLabel = volumeEntries.length;
+
   return `
     <div class="stats-grid">
       <div class="stat-card">
@@ -210,20 +279,44 @@ function buildFriendlyStatsHtml(data) {
       </div>
     </div>
 
-    <div class="stat-card">
-      <span class="label">Övningar i datan</span>
-      <ul class="stat-list">${exercisesHtml}</ul>
+    <div class="accordion-controls" role="group" aria-label="Kontroller för statistiksektioner">
+      <button type="button" class="soft-button accordion-control-button" data-action="open-all">
+        Öppna alla
+      </button>
+      <button type="button" class="soft-button accordion-control-button" data-action="close-all">
+        Stäng alla
+      </button>
     </div>
 
-    <div class="stat-card">
-      <span class="label">Estimerad 1RM per övning</span>
-      <ul class="stat-list">${oneRmHtml}</ul>
-    </div>
+    <details class="stat-accordion">
+      <summary>
+        <span>Övningar i datan</span>
+        <span class="count-badge">${exerciseCountLabel}</span>
+      </summary>
+      <div class="accordion-content">
+        <ul class="stat-list">${exercisesHtml}</ul>
+      </div>
+    </details>
 
-    <div class="stat-card">
-      <span class="label">Total volym per övning</span>
-      <ul class="stat-list">${volumeHtml}</ul>
-    </div>
+    <details class="stat-accordion">
+      <summary>
+        <span>Estimerad 1RM per övning</span>
+        <span class="count-badge">${oneRmCountLabel}</span>
+      </summary>
+      <div class="accordion-content">
+        <ul class="stat-list">${oneRmHtml}</ul>
+      </div>
+    </details>
+
+    <details class="stat-accordion">
+      <summary>
+        <span>Total volym per övning</span>
+        <span class="count-badge">${volumeCountLabel}</span>
+      </summary>
+      <div class="accordion-content">
+        <ul class="stat-list">${volumeHtml}</ul>
+      </div>
+    </details>
   `;
 }
 
@@ -263,6 +356,7 @@ async function clearData() {
     );
     currentStatsData = null;
     renderStats();
+    updateHeroMetrics(null);
     chatStatus.textContent = "";
   } catch (error) {
     setStatus(
@@ -337,3 +431,4 @@ chatInput.addEventListener("keydown", (event) => {
 });
 
 setStatsView("friendly");
+updateHeroMetrics(null);

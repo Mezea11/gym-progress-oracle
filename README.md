@@ -41,7 +41,8 @@ app/
 		steps.py           # PromptBuilder, LLMRunner, ResponseParser
 		pipeline.py        # Kedjekoppling med | operatorn
 sample_data/
-	gym_progress.csv     # Exempeldata
+  gym_progress.csv                         # Mindre exempeldata
+  christian_mock_gym_progression_2023_2026.csv  # Större testdataset
 ```
 
 ## Krav
@@ -91,6 +92,30 @@ Servern kör normalt på:
 Interaktiv dokumentation:
 
 - `http://127.0.0.1:8000/docs`
+
+Frontend:
+
+- `http://127.0.0.1:8000/`
+
+## Använd frontend
+
+Efter att servern startat kan du använda webbgränssnittet för hela flödet:
+
+1. Öppna `http://127.0.0.1:8000/`.
+2. Ladda upp en CSV i sektionen **CSV-uppladdning**.
+3. Hämta statistik i sektionen **Statistik**.
+4. Fråga AI:n i sektionen **AI-chat**.
+
+Tips: chatpanelen ligger bredvid statistik på större skärmar för enklare analys + prompting.
+
+## Testdataset
+
+I `sample_data/` finns två dataset:
+
+- `gym_progress.csv` (mindre och snabb att testa med)
+- `christian_mock_gym_progression_2023_2026.csv` (större, bra för att testa långa statistiklistor och AI-frågor)
+
+Du kan använda båda i frontend (eller via `POST /data/upload`) för att verifiera olika scenarier.
 
 ## API-endpoints
 
@@ -184,9 +209,9 @@ Exempel svar:
 ## Typiskt flöde
 
 1. Starta servern.
-2. Anropa `POST /data/upload` med CSV.
-3. Verifiera med `GET /data/stats`.
-4. Fråga modellen via `POST /ai/ask`.
+2. Ladda upp CSV via frontend på `http://127.0.0.1:8000/` eller anropa `POST /data/upload`.
+3. Verifiera statistik i frontend eller med `GET /data/stats`.
+4. Fråga modellen via frontend-chatten eller `POST /ai/ask`.
 
 Notering: datan sparas i `app/gym_progress.db` och finns kvar tills du laddar upp ny CSV eller kör `DELETE /data/clear`.
 

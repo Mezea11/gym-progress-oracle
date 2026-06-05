@@ -1,77 +1,122 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="sv">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gym Progress Oracle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Teko:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
-    <main class="container">
-      <header class="hero">
-        <h1>Gym Progress Oracle</h1>
-        <p>Ladda upp träningsdata och fråga AI:n om din progression.</p>
+    <div class="bg-orb orb-a" aria-hidden="true"></div>
+    <div class="bg-orb orb-b" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <main class="dashboard">
+      <header class="masthead panel">
+        <div>
+          <p class="eyebrow">Prestationsanalys</p>
+          <h1>Gym Progress Oracle</h1>
+          <p class="lead">
+            Ladda upp träningsdata, analysera progression och chatta med din
+            träningsassistent.
+          </p>
+        </div>
+        <div class="live-pill">
+          <span class="dot" aria-hidden="true"></span>
+          Panel aktiv
+        </div>
       </header>
 
-      <section class="card">
-        <h2>CSV-upload</h2>
-        <div class="row">
-          <input id="csvFile" type="file" accept=".csv" />
-          <button id="uploadButton" type="button">Ladda upp CSV</button>
-        </div>
-        <p id="uploadStatus" class="status" aria-live="polite"></p>
+      <section class="hero-metrics panel">
+        <article class="metric-tile">
+          <p>Rader i aktiv data</p>
+          <strong id="metricRows">-</strong>
+        </article>
+        <article class="metric-tile">
+          <p>Unika övningar</p>
+          <strong id="metricExercises">-</strong>
+        </article>
+        <article class="metric-tile">
+          <p>Tyngsta lyft</p>
+          <strong id="metricTopLift">-</strong>
+        </article>
       </section>
 
-      <section class="card">
-        <h2>Statistik</h2>
-        <div class="row">
-          <button id="statsButton" type="button">Hämta statistik</button>
-          <button id="clearButton" type="button" class="danger-button">
-            Rensa data
-          </button>
-        </div>
-        <div
-          class="row view-toggle"
-          role="group"
-          aria-label="Välj statistikvisning"
-        >
-          <button
-            id="friendlyViewButton"
-            type="button"
-            class="toggle-button active"
-          >
-            Lättläst
-          </button>
-          <button id="jsonViewButton" type="button" class="toggle-button">
-            JSON
-          </button>
-        </div>
-        <p id="clearStatus" class="status" aria-live="polite"></p>
-        <div id="statsFriendlyOutput" class="stats-friendly">
-          Ingen statistik hämtad ännu.
-        </div>
-        <pre id="statsOutput" class="hidden">Ingen statistik hämtad ännu.</pre>
-      </section>
+      <div class="content-grid">
+        <section class="panel">
+          <div class="section-head">
+            <h2>CSV-uppladdning</h2>
+            <p>Importera din loggfil för analys.</p>
+          </div>
+          <div class="row">
+            <input id="csvFile" type="file" accept=".csv" />
+            <button id="uploadButton" type="button">Ladda upp CSV</button>
+          </div>
+          <p id="uploadStatus" class="status" aria-live="polite"></p>
+        </section>
 
-      <section class="card">
-        <h2>Chat</h2>
-        <div id="chatWindow" class="chat-window" aria-live="polite"></div>
-        <div class="row">
-          <input
-            id="chatInput"
-            type="text"
-            placeholder="Ex: Vilken övning har högst estimated 1RM?"
-            maxlength="500"
-          />
-          <button id="chatButton" type="button">Skicka</button>
-          <button id="clearChatButton" type="button" class="danger-button">
-            Rensa chatten
-          </button>
-        </div>
-        <p id="chatStatus" class="status" aria-live="polite"></p>
-      </section>
+        <section class="panel">
+          <div class="section-head">
+            <h2>Statistik</h2>
+            <p>Växla mellan lättläst vy och JSON.</p>
+          </div>
+          <div class="row">
+            <button id="statsButton" type="button">Hämta statistik</button>
+            <button id="clearButton" type="button" class="danger-button">
+              Rensa data
+            </button>
+          </div>
+          <div class="row view-toggle" role="group" aria-label="Välj statistikvisning">
+            <button id="friendlyViewButton" type="button" class="toggle-button active">
+              Lättläst
+            </button>
+            <button id="jsonViewButton" type="button" class="toggle-button">
+              JSON
+            </button>
+          </div>
+          <p id="clearStatus" class="status" aria-live="polite"></p>
+          <div id="statsFriendlyOutput" class="stats-friendly">
+            Ingen statistik hämtad ännu.
+          </div>
+          <pre id="statsOutput" class="hidden">Ingen statistik hämtad ännu.</pre>
+        </section>
+
+        <section class="panel chat-panel">
+          <div class="section-head">
+            <h2>AI-chat</h2>
+            <p>Fråga om progression, 1RM och volym per övning.</p>
+          </div>
+          <div id="chatWindow" class="chat-window" aria-live="polite"></div>
+          <div class="row chat-input-row">
+            <input
+              id="chatInput"
+              type="text"
+              placeholder="Ex: Vilken övning har högst estimerad 1RM?"
+              maxlength="500"
+            />
+            <button id="chatButton" type="button">Skicka</button>
+          </div>
+          <div class="row action-row">
+            <button id="clearChatButton" type="button" class="soft-button">
+              Rensa chatten
+            </button>
+          </div>
+          <p id="chatStatus" class="status" aria-live="polite"></p>
+        </section>
+      </div>
+
+      <footer class="footnote">
+        <p>Gym Progress Oracle - Premiumpanel</p>
+      </footer>
     </main>
 
     <script src="/static/app.js"></script>
   </body>
 </html>
+
