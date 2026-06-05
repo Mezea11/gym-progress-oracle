@@ -3,15 +3,21 @@ from io import BytesIO
 import pandas as pd
 from fastapi import HTTPException, UploadFile
 
+from app.database import (
+    clear_dataset_in_db,
+    dataset_exists_in_db,
+    initialize_database,
+    load_dataset_from_db,
+    save_dataset_to_db,
+)
+
 # vi sätter våra kolumner. dessa kolumner måste finnas
 REQUIRED_COLUMNS = {"date", "exercise", "weight", "reps", "sets"}
 
-_current_dataset: pd.DataFrame | None = None
+initialize_database()
 
 
 def upload_dataset(file: UploadFile) -> dict:
-    global _current_dataset
-
     # vi tillåter bara csv laddas upp i vår första version
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(
@@ -30,6 +36,9 @@ def upload_dataset(file: UploadFile) -> dict:
 
         df = pd.read_csv(BytesIO(content))
 
+    except HTTPException:
+        # Behåll statuskod + detail från våra egna valideringar.
+        raise
     except pd.errors.EmptyDataError:  # får ej vara tom eller invalid
         raise HTTPException(
             status_code=400,
@@ -49,7 +58,7 @@ def upload_dataset(file: UploadFile) -> dict:
             detail=f"CSV is missing required columns: {sorted(missing_columns)}",
         )
 
-    _current_dataset = df
+    save_dataset_to_db(df)
 
     return {  # returnera hela vårt dataset
         "rows": len(df),
@@ -59,13 +68,22 @@ def upload_dataset(file: UploadFile) -> dict:
 
 
 def get_current_dataset() -> pd.DataFrame:  # om det inte finns data, fallback kod
-    if _current_dataset is None:
+    if not dataset_exists_in_db():
         raise HTTPException(
             status_code=404,
             detail="No dataset has been uploaded yet.",
         )
 
-    return _current_dataset
+    return load_dataset_from_db()
+
+
+def clear_dataset() -> dict[str, int | str]:
+    removed_rows = clear_dataset_in_db()
+
+    return {
+        "status": "cleared",
+        "rows_removed": removed_rows,
+    }
 
 # Statistik för våra gympass
 

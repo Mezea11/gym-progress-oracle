@@ -30,11 +30,12 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 @pytest.fixture(autouse=True)
 def reset_dataset_state() -> None:
-    """Rensar in-memory dataset mellan tester för deterministiskt beteende."""
+    """Rensar databasdata mellan tester för deterministiskt beteende."""
 
-    from app import data
+    from app.database import clear_dataset_in_db, initialize_database
 
-    data._current_dataset = None
+    initialize_database()
+    clear_dataset_in_db()
 
 
 def test_health_returns_ok(client: TestClient) -> None:
@@ -146,6 +147,28 @@ def test_ask_ai_returns_404_without_uploaded_dataset(client: TestClient) -> None
     assert response.json()["detail"] == "No dataset has been uploaded yet."
 
 
+def test_data_clear_removes_uploaded_dataset(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2026-01-01,Deadlift,180,1,3\n"
+    )
+
+    upload_response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+    assert upload_response.status_code == 200
+
+    clear_response = client.delete("/data/clear")
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["status"] == "cleared"
+    assert clear_response.json()["rows_removed"] == 1
+
+    stats_response = client.get("/data/stats")
+    assert stats_response.status_code == 404
+
+
 def test_upload_rejects_csv_missing_required_columns(client: TestClient) -> None:
     csv_bytes = (
         b"date,exercise,weight\n"
@@ -168,5 +191,4 @@ def test_upload_rejects_empty_csv(client: TestClient) -> None:
     )
 
     assert response.status_code == 400
-    assert response.json()[
-        "detail"] == "Could not read CSV file: 400: Uploaded CSV file is empty."
+    assert response.json()["detail"] == "Uploaded CSV file is empty."

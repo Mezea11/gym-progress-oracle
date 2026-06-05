@@ -11,6 +11,7 @@ Projektet följer principen: **Pandas räknar, modellen formulerar**.
 ## Funktioner
 
 - CSV-upload med validering av obligatoriska kolumner.
+- Persistens i lokal SQLite-databas så uppladdad data lever kvar mellan omstarter.
 - Statistik-API för volym, tyngsta lyft och estimerad 1RM.
 - `/ai/ask`-endpoint som bygger prompt från verifierade fakta och returnerar AI-svar.
 - Guardrails i parser-steget som fångar trasiga eller läckande modellsvar.
@@ -20,6 +21,7 @@ Projektet följer principen: **Pandas räknar, modellen formulerar**.
 - Python
 - FastAPI
 - Pandas
+- SQLite (via Python stdlib `sqlite3`)
 - Transformers (Hugging Face pipeline)
 - Uvicorn
 - Pytest
@@ -29,6 +31,9 @@ Projektet följer principen: **Pandas räknar, modellen formulerar**.
 ```text
 app/
 	main.py              # FastAPI-app och endpoints
+  database/
+    __init__.py        # publika databasfunktioner
+    sqlite_store.py    # SQLite-lager (save/load/clear)
 	data.py              # Upload, validering och statistik
 	schemas.py           # Pydantic-modeller för API och chain
 	chain/
@@ -54,6 +59,24 @@ uv sync
 ```
 
 Detta skapar/uppdaterar miljön baserat på `pyproject.toml` och `uv.lock`.
+
+## Konfiguration (.env)
+
+Projektet använder central konfiguration i `app/config.py`.
+Inställningar läses via `os.getenv()` och `.env` (med `python-dotenv`).
+
+1. Kopiera `.env.example` till `.env`.
+2. Justera värden vid behov.
+
+Stödda variabler:
+
+- `HUGGINGFACE_TOKEN` (valfri, behövs normalt inte för lokal modell)
+- `MODEL_NAME`
+- `MODEL_MAX_NEW_TOKENS`
+- `MODEL_DO_SAMPLE`
+- `MODEL_RETURN_FULL_TEXT`
+- `DATABASE_PATH`
+- `DATABASE_TABLE_NAME`
 
 ## Starta API:t
 
@@ -119,6 +142,19 @@ Returnerar statistik beräknad från uppladdad dataset, bl.a.:
 
 Om ingen fil är uppladdad returneras `404`.
 
+### `DELETE /data/clear`
+
+Rensar sparad dataset i SQLite.
+
+Exempel svar:
+
+```json
+{
+  "status": "cleared",
+  "rows_removed": 7
+}
+```
+
 ### `POST /ai/ask`
 
 Tar emot en fråga om uppladdad data och returnerar ett svar från kedjan.
@@ -151,6 +187,8 @@ Exempel svar:
 2. Anropa `POST /data/upload` med CSV.
 3. Verifiera med `GET /data/stats`.
 4. Fråga modellen via `POST /ai/ask`.
+
+Notering: datan sparas i `app/gym_progress.db` och finns kvar tills du laddar upp ny CSV eller kör `DELETE /data/clear`.
 
 ## Hur AI-kedjan fungerar
 
@@ -213,7 +251,8 @@ Projektet innehåller tester för flera olika aspekter enligt KK2:
   - `POST /data/upload` med giltig CSV returnerar metadata,
   - `POST /data/upload` med ogiltig fil returnerar 400,
   - `GET /data/stats` utan dataset returnerar 404,
-  - `GET /data/stats` efter upload returnerar statistik.
+  - `GET /data/stats` efter upload returnerar statistik,
+  - `DELETE /data/clear` rensar dataset och `GET /data/stats` ger därefter 404.
 - Mockad modell/kedja i endpointtest:
   - `/ai/ask` testas utan riktig modellnedladdning genom mockad chain-invoke,
   - `/ai/ask` utan uppladdad data returnerar 404.
@@ -221,10 +260,10 @@ Projektet innehåller tester för flera olika aspekter enligt KK2:
 Senaste körning lokalt:
 
 - `uv run pytest app/tests/ -v` -> 13 passed
+- `uv run pytest app/tests/ -v` -> 16 passed
 
 ## Kända begränsningar
 
-- Datan lagras endast i minnet (`_current_dataset`) och försvinner vid omstart.
 - Första AI-anropet kan vara långsamt om modellen behöver laddas ner.
 - Projektet kräver relativt ny Python-version.
 

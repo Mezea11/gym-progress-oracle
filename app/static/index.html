@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gym Progress Oracle</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <h1>Gym Progress Oracle</h1>
+      <p>Ladda upp träningsdata och fråga AI:n om din progression.</p>
+    </header>
+
+    <section class="card">
+      <h2>CSV-upload</h2>
+      <div class="row">
+        <input id="csvFile" type="file" accept=".csv">
+        <button id="uploadButton" type="button">Ladda upp CSV</button>
+      </div>
+      <p id="uploadStatus" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Statistik</h2>
+      <div class="row">
+        <button id="statsButton" type="button">Hämta statistik</button>
+      </div>
+      <pre id="statsOutput">Ingen statistik hämtad ännu.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Chat</h2>
+      <div id="chatWindow" class="chat-window" aria-live="polite"></div>
+      <div class="row">
+        <input
+          id="chatInput"
+          type="text"
+          placeholder="Ex: Vilken övning har högst estimated 1RM?"
+          maxlength="500"
+        >
+        <button id="chatButton" type="button">Skicka</button>
+      </div>
+      <p id="chatStatus" class="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

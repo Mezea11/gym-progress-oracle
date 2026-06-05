@@ -1,6 +1,7 @@
 import re
 
 from app.chain.runnable import Runnable
+from app.config import settings
 from app.schemas import (
     LLMRunnerOutput,
     PromptBuilderInput,
@@ -8,7 +9,6 @@ from app.schemas import (
     ResponseParserOutput,
 )
 
-MODEL_NAME = "HuggingFaceTB/SmolLM2-135M-Instruct"
 ANSWER_START_MARKER = "<<<SVAR_START>>>"
 ANSWER_END_MARKER = "<<<SVAR_SLUT>>>"
 
@@ -151,20 +151,24 @@ class LLMRunner(Runnable[PromptBuilderOutput, LLMRunnerOutput]):
     def __init__(self) -> None:
         from transformers import pipeline
 
-        self.generator = pipeline(
-            "text-generation",
-            model=MODEL_NAME,
-        )
+        pipeline_kwargs = {
+            "task": "text-generation",
+            "model": settings.model_name,
+        }
+
+        if settings.huggingface_token:
+            pipeline_kwargs["token"] = settings.huggingface_token
+
+        self.generator = pipeline(**pipeline_kwargs)
 
     def invoke(self, input_data: PromptBuilderOutput) -> LLMRunnerOutput:
         try:
             result = self.generator(
                 input_data.prompt,
-                # Något högre budget minskar risken att modellen fastnar i prompt-eko
-                # innan den hinner formulera ett komplett svar.
-                max_new_tokens=160,
-                do_sample=False,
-                return_full_text=False,
+                # Inställningar kommer från config för att kunna styras via .env.
+                max_new_tokens=settings.model_max_new_tokens,
+                do_sample=settings.model_do_sample,
+                return_full_text=settings.model_return_full_text,
                 clean_up_tokenization_spaces=False,
             )
 
@@ -176,7 +180,7 @@ class LLMRunner(Runnable[PromptBuilderOutput, LLMRunnerOutput]):
         return LLMRunnerOutput(
             question=input_data.question,
             raw_output=raw_output,
-            model=MODEL_NAME,
+            model=settings.model_name,
             facts_summary=input_data.facts_summary,
             stats=input_data.stats,
         )
