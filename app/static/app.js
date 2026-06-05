@@ -14,6 +14,7 @@ const chatWindow = document.getElementById("chatWindow");
 const chatInput = document.getElementById("chatInput");
 const chatButton = document.getElementById("chatButton");
 const chatStatus = document.getElementById("chatStatus");
+const clearChatButton = document.getElementById("clearChatButton");
 
 let currentStatsData = null;
 let statsViewMode = "friendly";
@@ -42,6 +43,11 @@ function appendChatMessage(role, text) {
   message.appendChild(body);
   chatWindow.appendChild(message);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function clearChat() {
+  chatWindow.replaceChildren();
+  setStatus(chatStatus, "Chatten är rensad.", "ok");
 }
 
 function getApiError(error, fallback) {
@@ -318,6 +324,10 @@ clearButton.addEventListener("click", clearData);
 friendlyViewButton.addEventListener("click", () => setStatsView("friendly"));
 jsonViewButton.addEventListener("click", () => setStatsView("json"));
 chatButton.addEventListener("click", askAi);
+
+if (clearChatButton) {
+  clearChatButton.addEventListener("click", clearChat);
+}
 
 chatInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
