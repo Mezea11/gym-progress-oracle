@@ -144,3 +144,29 @@ def test_ask_ai_returns_404_without_uploaded_dataset(client: TestClient) -> None
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No dataset has been uploaded yet."
+
+
+def test_upload_rejects_csv_missing_required_columns(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight\n"
+        b"2026-01-01,Deadlift,180\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert "CSV is missing required columns" in response.json()["detail"]
+
+
+def test_upload_rejects_empty_csv(client: TestClient) -> None:
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", b"", "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()[
+        "detail"] == "Could not read CSV file: 400: Uploaded CSV file is empty."
