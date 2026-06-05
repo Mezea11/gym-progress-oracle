@@ -31,12 +31,14 @@ class PromptBuilderInput(BaseModel):  # fråga + statistik in i kedjan
 class PromptBuilderOutput(BaseModel):  # färdig prompt ut från första steget
     question: str
     prompt: str
+    facts_summary: str
 
 
 class LLMRunnerOutput(BaseModel):  # råtext från modellen
     question: str
     raw_output: str
     model: str
+    facts_summary: str
 
 
 class ResponseParserOutput(BaseModel):  # städat slutresultat
