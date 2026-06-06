@@ -59,7 +59,8 @@ class QueryIntent(BaseModel):
         "single_metric",
         "unknown",
     ]
-    metric: Literal["estimated_1rm", "total_volume", "heaviest_lift", "unknown"]
+    metric: Literal["estimated_1rm",
+                    "total_volume", "heaviest_lift", "unknown"]
     operator: Literal[
         "compare",
         "difference",

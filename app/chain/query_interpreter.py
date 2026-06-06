@@ -283,7 +283,8 @@ class QueryInterpreter:
         normalized_text = text_value.lower().strip()
 
         for source_character, target_character in {"å": "a", "ä": "a", "ö": "o"}.items():
-            normalized_text = normalized_text.replace(source_character, target_character)
+            normalized_text = normalized_text.replace(
+                source_character, target_character)
 
         normalized_text = normalized_text.replace("-", " ")
         normalized_text = re.sub(r"[^a-z0-9\s+]", " ", normalized_text)

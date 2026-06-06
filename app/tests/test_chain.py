@@ -70,7 +70,8 @@ def test_query_interpreter_maps_compare_variations_to_same_intent() -> None:
         )
 
         assert interpreted_intent.intent == "compare_metric"
-        assert set(interpreted_intent.referenced_exercises) == {"Deadlift", "Weighted Chin"}
+        assert set(interpreted_intent.referenced_exercises) == {
+            "Deadlift", "Weighted Chin"}
 
 
 def test_response_parser_extracts_only_marked_answer() -> None:
