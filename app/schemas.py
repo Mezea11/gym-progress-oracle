@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -47,3 +47,26 @@ class ResponseParserOutput(BaseModel):  # städat slutresultat
     question: str
     answer: str
     model: str
+
+
+class QueryIntent(BaseModel):
+    intent: Literal[
+        "compare_metric",
+        "single_exercise_metric",
+        "highest_metric",
+        "lowest_metric",
+        "rank_metric",
+        "single_metric",
+        "unknown",
+    ]
+    metric: Literal["estimated_1rm", "total_volume", "heaviest_lift", "unknown"]
+    operator: Literal[
+        "compare",
+        "difference",
+        "highest",
+        "lowest",
+        "rank",
+        "single",
+        "unknown",
+    ]
+    referenced_exercises: list[str] = Field(default_factory=list)

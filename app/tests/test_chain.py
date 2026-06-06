@@ -4,6 +4,7 @@ from app.chain.steps import (
     PromptBuilder,
     ResponseParser,
 )
+from app.chain.query_interpreter import QueryInterpreter
 from app.schemas import LLMRunnerOutput, PromptBuilderInput
 
 
@@ -34,7 +35,7 @@ def _sample_stats() -> dict:
 def test_prompt_builder_includes_answer_markers() -> None:
     builder = PromptBuilder()
     input_data = PromptBuilderInput(
-        question="Estimated 1RM pa deadlift?",
+        question="Estimated 1RM på deadlift?",
         stats=_sample_stats(),
     )
 
@@ -43,21 +44,44 @@ def test_prompt_builder_includes_answer_markers() -> None:
     assert ANSWER_START_MARKER in output.prompt
     assert ANSWER_END_MARKER in output.prompt
     assert "Verifierade fakta:" in output.prompt
-    assert "Identifiera vilken metrik frågan gäller" in output.prompt
+    assert "Intent och metrik är redan tolkade av appen" in output.prompt
+    assert "Tolkad intent:" in output.prompt
     assert "Estimerad 1RM" in output.prompt
     assert "Total volym" in output.prompt
-    assert "Estimated 1RM pa deadlift?" in output.prompt
+    assert "Estimated 1RM på deadlift?" in output.prompt
+
+
+def test_query_interpreter_maps_compare_variations_to_same_intent() -> None:
+    interpreter = QueryInterpreter()
+    available_exercises = ["Weighted Chin", "Deadlift", "Squat"]
+
+    question_variations = [
+        "jämför 1RM på weighted chin och deadlift",
+        "deadlift vs weighted chin",
+        "vad är skillnaden mellan deadlift och weighted chin?",
+        "compare deadlift and weighted chin",
+        "jämför 1RM på marklyft och viktade chins",
+    ]
+
+    for question in question_variations:
+        interpreted_intent = interpreter.interpret(
+            question=question,
+            available_exercises=available_exercises,
+        )
+
+        assert interpreted_intent.intent == "compare_metric"
+        assert set(interpreted_intent.referenced_exercises) == {"Deadlift", "Weighted Chin"}
 
 
 def test_response_parser_extracts_only_marked_answer() -> None:
     parser = ResponseParser()
 
     model_output = LLMRunnerOutput(
-        question="Estimated 1RM pa deadlift?",
+        question="Estimated 1RM på deadlift?",
         raw_output=(
             "Lite brus innan\n"
             f"{ANSWER_START_MARKER}\n"
-            "Deadlift har hogst estimerad 1RM pa cirka 186 kg.\n"
+            "Deadlift har högst estimerad 1RM på cirka 186 kg.\n"
             f"{ANSWER_END_MARKER}\n"
             "Brus efter"
         ),
@@ -76,14 +100,14 @@ def test_response_parser_fallbacks_on_prompt_echo() -> None:
 
     facts_summary = (
         "Antal loggade set/rader: 7.\n"
-        "Antal unika ovningar: 3.\n"
-        "Ovningar i datan: Bench Press, Deadlift, Squat."
+        "Antal unika övningar: 3.\n"
+        "Övningar i datan: Bench Press, Deadlift, Squat."
     )
 
     model_output = LLMRunnerOutput(
-        question="Estimated 1RM pa deadlift?",
+        question="Estimated 1RM på deadlift?",
         raw_output=(
-            "Fraga:\nEstimated 1RM pa deadlift?\n"
+            "Fråga:\nEstimated 1RM på deadlift?\n"
             "Verifierade fakta:\n"
             f"{facts_summary}"
         ),
@@ -102,7 +126,7 @@ def test_response_parser_handles_lowest_1rm_question() -> None:
     parser = ResponseParser()
 
     model_output = LLMRunnerOutput(
-        question="Vilken ovning har lagst estimerad 1RM?",
+        question="Vilken övning har lägst estimerad 1RM?",
         raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
         model="HuggingFaceTB/SmolLM2-135M-Instruct",
         facts_summary="irrelevant",
@@ -119,7 +143,7 @@ def test_response_parser_handles_exercise_specific_1rm() -> None:
     parser = ResponseParser()
 
     model_output = LLMRunnerOutput(
-        question="Vad ar estimerad 1RM i squat?",
+        question="Vad är estimerad 1RM i squat?",
         raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
         model="HuggingFaceTB/SmolLM2-135M-Instruct",
         facts_summary="irrelevant",
@@ -136,7 +160,7 @@ def test_response_parser_handles_1rm_difference_between_two_exercises() -> None:
     parser = ResponseParser()
 
     model_output = LLMRunnerOutput(
-        question="Hur stor ar skillnaden i estimerad 1RM mellan deadlift och squat?",
+        question="Hur stor är skillnaden i estimerad 1RM mellan deadlift och squat?",
         raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
         model="HuggingFaceTB/SmolLM2-135M-Instruct",
         facts_summary="irrelevant",

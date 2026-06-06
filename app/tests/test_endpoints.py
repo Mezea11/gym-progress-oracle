@@ -130,18 +130,18 @@ def test_ask_ai_uses_mocked_chain_result(client: TestClient, monkeypatch: pytest
     monkeypatch.setattr(main_module.gym_oracle_chain, "invoke", fake_invoke)
 
     response = client.post(
-        "/ai/ask", json={"question": "Vad ar estimerad 1RM i deadlift?"})
+        "/ai/ask", json={"question": "Vad är estimerad 1RM i deadlift?"})
 
     assert response.status_code == 200
     assert response.json() == {
-        "question": "Vad ar estimerad 1RM i deadlift?",
+        "question": "Vad är estimerad 1RM i deadlift?",
         "answer": "Mockat kedjesvar.",
         "model": "test-model",
     }
 
 
 def test_ask_ai_returns_404_without_uploaded_dataset(client: TestClient) -> None:
-    response = client.post("/ai/ask", json={"question": "Vad ar min 1RM?"})
+    response = client.post("/ai/ask", json={"question": "Vad är min 1RM?"})
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No dataset has been uploaded yet."

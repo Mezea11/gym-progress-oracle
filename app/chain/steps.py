@@ -1,5 +1,6 @@
 import re
 
+from app.chain.query_interpreter import QueryInterpreter
 from app.chain.runnable import Runnable
 from app.config import settings
 from app.schemas import (
@@ -25,8 +26,15 @@ class PromptBuilder(Runnable[PromptBuilderInput, PromptBuilderOutput]):
     Pandas räknar. LLM formulerar.
     """
 
+    def __init__(self) -> None:
+        self.query_interpreter = QueryInterpreter()
+
     def invoke(self, input_data: PromptBuilderInput) -> PromptBuilderOutput:
         facts_summary = self._build_facts_summary(input_data.stats)
+        interpreted_intent = self.query_interpreter.interpret(
+            question=input_data.question,
+            available_exercises=input_data.stats.get("exercises", []),
+        )
 
         # Vi använder tydliga svarmarkörer så parser-steget kan plocka ut exakt
         # den del som är själva svaret, även om modellen råkar skriva extra text.
@@ -41,15 +49,20 @@ Om frågan inte kan besvaras från fakta, säg: "Datan räcker inte för att sva
 
 Svara på svenska med max 2 meningar.
 
-    Arbeta i denna ordning:
-    1) Identifiera vilken metrik frågan gäller.
-    2) Använd bara den delen av fakta som matchar metrikens betydelse.
-    3) Formulera ett kort och tydligt svar.
+    Intent och metrik är redan tolkade av appen.
+    Du ska inte tolka intent själv och du ska inte göra nya beräkningar.
+    Använd den givna intent-tolkningen för att formulera svaret.
 
     Metrikdefinitioner:
     - "Estimerad 1RM" = uppskattad maxstyrka för ett lyft.
     - "Total volym" = vikt * reps * set summerat per övning.
     - Dessa två metriktyper är inte samma sak och får inte blandas ihop.
+
+    Tolkad intent:
+    - intent: {interpreted_intent.intent}
+    - metric: {interpreted_intent.metric}
+    - operator: {interpreted_intent.operator}
+    - referenced_exercises: {', '.join(interpreted_intent.referenced_exercises) if interpreted_intent.referenced_exercises else 'inga'}
 
     Skriv ENDAST svaret mellan dessa markörer:
     {ANSWER_START_MARKER}
@@ -195,6 +208,9 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
     Det är en generell guardrail, inte hårdkodning per fråga.
     """
 
+    def __init__(self) -> None:
+        self.query_interpreter = QueryInterpreter()
+
     def invoke(self, input_data: LLMRunnerOutput) -> ResponseParserOutput:
         raw_output = input_data.raw_output.strip()
 
@@ -287,29 +303,28 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
     ) -> str:
         # När modellen misslyckas bygger vi ett säkert, datadrivet svar från
         # redan verifierade Pandas-resultat.
-        intent = self._infer_question_intent(question)
-        metric_operator = self._infer_metric_operator(question)
-        referenced_exercises = self._extract_referenced_exercises(
+        interpreted_intent = self.query_interpreter.interpret(
             question=question,
             available_exercises=stats.get("exercises", []),
         )
+        referenced_exercises = interpreted_intent.referenced_exercises
 
-        if intent == "estimated_1rm":
+        if interpreted_intent.metric == "estimated_1rm":
             one_rm_by_exercise = stats.get("estimated_1rm_by_exercise", {})
 
             if one_rm_by_exercise:
-                if metric_operator == "lowest":
+                if interpreted_intent.operator == "lowest":
                     lowest_exercise = min(
                         one_rm_by_exercise, key=one_rm_by_exercise.get)
                     lowest_value = one_rm_by_exercise[lowest_exercise]
                     return f"Lägst estimerad 1RM är {lowest_exercise} med cirka {lowest_value:.1f} kg."
 
-                if metric_operator == "rank":
+                if interpreted_intent.operator == "rank":
                     ranking = self._format_metric_map(
                         one_rm_by_exercise, unit="kg")
                     return f"Rangordning estimerad 1RM: {ranking}."
 
-                if metric_operator == "difference" and len(referenced_exercises) >= 2:
+                if interpreted_intent.operator == "difference" and len(referenced_exercises) >= 2:
                     first_exercise = referenced_exercises[0]
                     second_exercise = referenced_exercises[1]
                     first_value = one_rm_by_exercise.get(first_exercise)
@@ -322,14 +337,7 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                             f"{first_exercise} och {second_exercise} är {difference:.1f} kg."
                         )
 
-                if referenced_exercises:
-                    exercise = referenced_exercises[0]
-                    exercise_value = one_rm_by_exercise.get(exercise)
-
-                    if exercise_value is not None:
-                        return f"Estimerad 1RM i {exercise} är cirka {exercise_value:.1f} kg."
-
-                if metric_operator == "compare" and len(referenced_exercises) >= 2:
+                if interpreted_intent.operator == "compare" and len(referenced_exercises) >= 2:
                     first_exercise = referenced_exercises[0]
                     second_exercise = referenced_exercises[1]
                     first_value = one_rm_by_exercise.get(first_exercise)
@@ -353,6 +361,13 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                             f"({first_value:.1f} kg)."
                         )
 
+                if referenced_exercises:
+                    exercise = referenced_exercises[0]
+                    exercise_value = one_rm_by_exercise.get(exercise)
+
+                    if exercise_value is not None:
+                        return f"Estimerad 1RM i {exercise} är cirka {exercise_value:.1f} kg."
+
                 top_exercise = max(one_rm_by_exercise,
                                    key=one_rm_by_exercise.get)
                 top_value = one_rm_by_exercise[top_exercise]
@@ -364,22 +379,22 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                     f"Per övning: {per_exercise}."
                 )
 
-        if intent == "total_volume":
+        if interpreted_intent.metric == "total_volume":
             volume_by_exercise = stats.get("total_volume_by_exercise", {})
 
             if volume_by_exercise:
-                if metric_operator == "lowest":
+                if interpreted_intent.operator == "lowest":
                     lowest_exercise = min(
                         volume_by_exercise, key=volume_by_exercise.get)
                     lowest_value = volume_by_exercise[lowest_exercise]
                     return f"Lägst total volym är {lowest_exercise} med {lowest_value:.1f} kg."
 
-                if metric_operator == "rank":
+                if interpreted_intent.operator == "rank":
                     ranking = self._format_metric_map(
                         volume_by_exercise, unit="kg")
                     return f"Rangordning total volym: {ranking}."
 
-                if metric_operator == "difference" and len(referenced_exercises) >= 2:
+                if interpreted_intent.operator == "difference" and len(referenced_exercises) >= 2:
                     first_exercise = referenced_exercises[0]
                     second_exercise = referenced_exercises[1]
                     first_value = volume_by_exercise.get(first_exercise)
@@ -390,6 +405,30 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                         return (
                             "Skillnaden i total volym mellan "
                             f"{first_exercise} och {second_exercise} är {difference:.1f} kg."
+                        )
+
+                if interpreted_intent.operator == "compare" and len(referenced_exercises) >= 2:
+                    first_exercise = referenced_exercises[0]
+                    second_exercise = referenced_exercises[1]
+                    first_value = volume_by_exercise.get(first_exercise)
+                    second_value = volume_by_exercise.get(second_exercise)
+
+                    if first_value is not None and second_value is not None:
+                        if first_value > second_value:
+                            return (
+                                f"{first_exercise} har högre total volym ({first_value:.1f} kg) "
+                                f"än {second_exercise} ({second_value:.1f} kg)."
+                            )
+
+                        if second_value > first_value:
+                            return (
+                                f"{second_exercise} har högre total volym ({second_value:.1f} kg) "
+                                f"än {first_exercise} ({first_value:.1f} kg)."
+                            )
+
+                        return (
+                            f"{first_exercise} och {second_exercise} har samma totala volym "
+                            f"({first_value:.1f} kg)."
                         )
 
                 if referenced_exercises:
@@ -410,7 +449,7 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                     f"Per övning: {per_exercise}."
                 )
 
-        if intent == "heaviest_lift":
+        if interpreted_intent.metric == "heaviest_lift":
             heaviest_lift = stats.get("heaviest_lift", {})
 
             if heaviest_lift:
@@ -421,10 +460,7 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                     f"{int(heaviest_lift.get('reps', 0))} reps."
                 )
 
-        if metric_operator == "compare" and (
-            "1rm" in question.lower()
-            and ("volym" in question.lower() or "volume" in question.lower())
-        ):
+        if interpreted_intent.intent == "compare_metric" and interpreted_intent.metric == "unknown":
             one_rm_by_exercise = stats.get("estimated_1rm_by_exercise", {})
             volume_by_exercise = stats.get("total_volume_by_exercise", {})
 
@@ -440,79 +476,12 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                     f"Högst total volym: {top_volume_exercise} ({volume_by_exercise[top_volume_exercise]:.1f} kg)."
                 )
 
-        # Sista utvagen om vi inte med sakerhet kan svara pa intent.
+        # Sista utvägen om vi inte med säkerhet kan svara på intent.
         return (
             "Modellen kunde inte generera ett tillförlitligt svar den här gången. "
             "Verifierade fakta från datan:\n"
             f"{facts_summary}"
         )
-
-    def _infer_question_intent(self, question: str) -> str:
-        normalized = self._normalize_text(question)
-
-        if "1rm" in normalized or "one rep max" in normalized or "maxstyrka" in normalized:
-            return "estimated_1rm"
-
-        if "volym" in normalized or "volume" in normalized:
-            return "total_volume"
-
-        if "tyngst" in normalized or "heaviest" in normalized:
-            return "heaviest_lift"
-
-        return "unknown"
-
-    def _infer_metric_operator(self, question: str) -> str:
-        normalized = self._normalize_text(question)
-
-        if "lagst" in normalized or "minst" in normalized or "lowest" in normalized:
-            return "lowest"
-
-        if "hogst" in normalized or "storst" in normalized or "highest" in normalized:
-            return "highest"
-
-        if "skillnad" in normalized or "difference" in normalized:
-            return "difference"
-
-        if "jamfor" in normalized or "compare" in normalized or "mellan" in normalized:
-            return "compare"
-
-        if "rangordna" in normalized or "rank" in normalized or "sortera" in normalized:
-            return "rank"
-
-        return "unknown"
-
-    def _extract_referenced_exercises(
-        self,
-        question: str,
-        available_exercises: list[str],
-    ) -> list[str]:
-        normalized_question = self._normalize_text(question)
-        scored_matches: list[tuple[int, str]] = []
-
-        for exercise in available_exercises:
-            normalized_exercise = self._normalize_text(exercise)
-            position = normalized_question.find(normalized_exercise)
-
-            if position >= 0:
-                scored_matches.append((position, exercise))
-
-        scored_matches.sort(key=lambda item: item[0])
-
-        return [exercise for _, exercise in scored_matches]
-
-    def _normalize_text(self, value: str) -> str:
-        normalized = value.strip().lower()
-
-        replacements = {
-            "å": "a",
-            "ä": "a",
-            "ö": "o",
-        }
-
-        for source, target in replacements.items():
-            normalized = normalized.replace(source, target)
-
-        return normalized
 
     def _format_metric_map(self, metric_map: dict[str, float], unit: str) -> str:
         sorted_items = sorted(metric_map.items(),
