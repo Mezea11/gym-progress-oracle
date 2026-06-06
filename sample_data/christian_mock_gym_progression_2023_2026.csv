@@ -3,9 +3,9 @@ date,exercise,weight,reps,sets
 2023-01-02,Neutral Grip Lat Pulldown,65,12,4
 2023-01-02,Overhead Press,42.5,5,4
 2023-01-02,Rope Pushdown,22.5,6,3
-2023-01-02,Weighted Chin-up (added weight),0,4,3
+2023-01-02,Weighted Chin-up (added weight),10,4,3
 2023-01-04,Deadlift,105,6,3
-2023-01-04,Weighted Dip (added weight),0,3,4
+2023-01-04,Weighted Dip (added weight),10,3,4
 2023-01-06,Leg Extension,55,12,4
 2023-01-06,Smith Machine Calf Raise,80,5,3
 2023-01-06,Squat,82.5,8,3
@@ -13,10 +13,10 @@ date,exercise,weight,reps,sets
 2023-01-09,Neutral Grip Lat Pulldown,65,6,3
 2023-01-09,Overhead Press,42.5,7,3
 2023-01-09,Rope Pushdown,22.5,8,4
-2023-01-09,Weighted Chin-up (added weight),0,5,3
+2023-01-09,Weighted Chin-up (added weight),10,5,3
 2023-01-11,Barbell Curl,27.5,12,3
 2023-01-11,Barbell Row,60,5,4
-2023-01-11,Weighted Dip (added weight),0,7,4
+2023-01-11,Weighted Dip (added weight),10,7,4
 2023-01-13,Leg Extension,55,6,4
 2023-01-13,Smith Machine Calf Raise,80,5,3
 2023-01-13,Squat,80,7,4
@@ -32,7 +32,7 @@ date,exercise,weight,reps,sets
 2023-01-23,Neutral Grip Lat Pulldown,67.5,12,3
 2023-01-23,Overhead Press,45,5,3
 2023-01-23,Rope Pushdown,25,12,3
-2023-01-23,Weighted Chin-up (added weight),0,7,3
+2023-01-23,Weighted Chin-up (added weight),10,7,3
 2023-01-25,Barbell Curl,27.5,12,3
 2023-01-25,Barbell Row,62.5,7,4
 2023-01-27,Leg Extension,55,8,3
@@ -43,7 +43,7 @@ date,exercise,weight,reps,sets
 2023-01-30,Neutral Grip Lat Pulldown,70,5,3
 2023-01-30,Overhead Press,45,6,3
 2023-01-30,Rope Pushdown,22.5,6,3
-2023-01-30,Weighted Chin-up (added weight),0,6,4
+2023-01-30,Weighted Chin-up (added weight),10,6,4
 2023-02-01,Barbell Row,62.5,5,4
 2023-02-01,Deadlift,112.5,6,4
 2023-02-03,Smith Machine Calf Raise,85,6,4
@@ -53,7 +53,7 @@ date,exercise,weight,reps,sets
 2023-02-06,Overhead Press,47.5,8,4
 2023-02-06,Weighted Chin-up (added weight),2.5,7,4
 2023-02-08,Deadlift,112.5,6,3
-2023-02-08,Weighted Dip (added weight),0,7,3
+2023-02-08,Weighted Dip (added weight),10,7,3
 2023-02-10,Leg Press,150,12,4
 2023-02-10,Smith Machine Calf Raise,90,6,4
 2023-02-10,Squat,82.5,6,3
@@ -109,7 +109,7 @@ date,exercise,weight,reps,sets
 2023-03-20,Neutral Grip Lat Pulldown,62.5,6,3
 2023-03-20,Overhead Press,40,7,3
 2023-03-20,Rope Pushdown,22.5,12,4
-2023-03-20,Weighted Chin-up (added weight),0,7,3
+2023-03-20,Weighted Chin-up (added weight),10,7,3
 2023-03-22,Barbell Curl,27.5,10,4
 2023-03-22,Deadlift,107.5,8,3
 2023-03-24,Smith Machine Calf Raise,85,12,3

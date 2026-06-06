@@ -192,3 +192,124 @@ def test_upload_rejects_empty_csv(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Uploaded CSV file is empty."
+
+
+def test_upload_rejects_text_in_weight_and_keeps_database_clean(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2026-01-01,Deadlift,heavy,5,3\n"
+    )
+
+    upload_response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert upload_response.status_code == 400
+    assert (
+        upload_response.json()["detail"]
+        == "CSV contains invalid numeric values in weight, reps or sets."
+    )
+
+    stats_response = client.get("/data/stats")
+    assert stats_response.status_code == 404
+
+
+def test_upload_rejects_text_in_reps(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2026-01-01,Deadlift,180,three,3\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"]
+        == "CSV contains invalid numeric values in weight, reps or sets."
+    )
+
+
+def test_upload_rejects_negative_weight(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2026-01-01,Deadlift,-180,3,3\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()[
+        "detail"] == "Weight, reps and sets must be positive numbers."
+
+
+def test_upload_rejects_zero_reps(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2026-01-01,Deadlift,180,0,3\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()[
+        "detail"] == "Weight, reps and sets must be positive numbers."
+
+
+def test_upload_rejects_invalid_date(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"not-a-date,Deadlift,180,3,3\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "CSV contains invalid date values."
+
+
+def test_upload_rejects_empty_exercise_after_trim(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2026-01-01,   ,180,3,3\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Exercise names cannot be empty."
+
+
+def test_upload_accepts_extra_columns_when_required_columns_are_valid(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets,note\n"
+        b"2026-01-01,Deadlift,180,3,3,Top set\n"
+        b"2026-01-02,Squat,140,5,3,Back-off\n"
+    )
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["rows"] == 2
+    assert "note" in response.json()["columns"]
+
+    stats_response = client.get("/data/stats")
+    assert stats_response.status_code == 200

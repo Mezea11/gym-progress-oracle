@@ -17,9 +17,69 @@ REQUIRED_COLUMNS = {"date", "exercise", "weight", "reps", "sets"}
 initialize_database()
 
 
+def validate_training_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+    # Vi validerar tidigt så att endast ren data når databasen.
+    if dataframe.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded CSV file is empty.",
+        )
+
+    missing_columns = REQUIRED_COLUMNS - set(dataframe.columns)
+    if missing_columns:
+        raise HTTPException(
+            status_code=400,
+            detail=f"CSV is missing required columns: {sorted(missing_columns)}",
+        )
+
+    cleaned_dataframe = dataframe.copy()
+
+    numeric_columns = ["weight", "reps", "sets"]
+    for column_name in numeric_columns:
+        cleaned_dataframe[column_name] = pd.to_numeric(
+            cleaned_dataframe[column_name],
+            errors="coerce",
+        )
+
+    if cleaned_dataframe[numeric_columns].isna().any().any():
+        raise HTTPException(
+            status_code=400,
+            detail="CSV contains invalid numeric values in weight, reps or sets.",
+        )
+
+    if (cleaned_dataframe[numeric_columns] <= 0).any().any():
+        raise HTTPException(
+            status_code=400,
+            detail="Weight, reps and sets must be positive numbers.",
+        )
+
+    cleaned_dataframe["date"] = pd.to_datetime(
+        cleaned_dataframe["date"],
+        errors="coerce",
+    )
+    if cleaned_dataframe["date"].isna().any():
+        raise HTTPException(
+            status_code=400,
+            detail="CSV contains invalid date values.",
+        )
+    cleaned_dataframe["date"] = cleaned_dataframe["date"].dt.strftime(
+        "%Y-%m-%d")
+
+    cleaned_dataframe["exercise"] = (
+        cleaned_dataframe["exercise"].fillna("").astype(str).str.strip()
+    )
+    if (cleaned_dataframe["exercise"] == "").any():
+        raise HTTPException(
+            status_code=400,
+            detail="Exercise names cannot be empty.",
+        )
+
+    return cleaned_dataframe
+
+
 def upload_dataset(file: UploadFile) -> dict:
     # vi tillåter bara csv laddas upp i vår första version
-    if not file.filename or not file.filename.endswith(".csv"):
+    if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=400,
             detail="Only CSV files are allowed.",
@@ -50,20 +110,17 @@ def upload_dataset(file: UploadFile) -> dict:
             detail=f"Could not read CSV file: {error}",
         )
 
-    missing_columns = REQUIRED_COLUMNS - set(df.columns)
+    validated_dataframe = validate_training_dataframe(df)
 
-    if missing_columns:  # måste innehålla alla obligatoriska kolumner
-        raise HTTPException(
-            status_code=400,
-            detail=f"CSV is missing required columns: {sorted(missing_columns)}",
-        )
-
-    save_dataset_to_db(df)
+    save_dataset_to_db(validated_dataframe)
 
     return {  # returnera hela vårt dataset
-        "rows": len(df),
-        "columns": list(df.columns),
-        "dtypes": {column: str(dtype) for column, dtype in df.dtypes.items()},
+        "rows": len(validated_dataframe),
+        "columns": list(validated_dataframe.columns),
+        "dtypes": {
+            column: str(dtype)
+            for column, dtype in validated_dataframe.dtypes.items()
+        },
     }
 
 
