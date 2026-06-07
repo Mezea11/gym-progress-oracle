@@ -1,7 +1,7 @@
 from pathlib import Path
 import logging
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.chain.pipeline import gym_oracle_chain
@@ -70,8 +70,19 @@ def clear_data() -> dict[str, int | str]:
 @app.post("/ai/ask", response_model=AskResponse)
 def ask_ai(request: AskRequest) -> AskResponse:
     logger.info("AI question received question_length=%s", len(request.question))
-    stats = get_dataset_stats()
-    insights = get_dataset_insights()
+    try:
+        stats = get_dataset_stats()
+        insights = get_dataset_insights()
+    except HTTPException as error:
+        if (
+            error.status_code == 404
+            and str(error.detail) == "No dataset has been uploaded yet."
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Upload a dataset before asking AI questions.",
+            ) from error
+        raise
 
     chain_stats = {
         **stats,

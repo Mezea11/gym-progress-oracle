@@ -249,11 +249,11 @@ def test_ask_ai_uses_mocked_chain_result(client: TestClient, monkeypatch: pytest
     }
 
 
-def test_ask_ai_returns_404_without_uploaded_dataset(client: TestClient) -> None:
+def test_ai_ask_without_dataset_returns_400(client: TestClient) -> None:
     response = client.post("/ai/ask", json={"question": "Vad är min 1RM?"})
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No dataset has been uploaded yet."
+    assert response.status_code == 400
+    assert "Upload a dataset" in response.json()["detail"]
 
 
 def test_data_clear_removes_uploaded_dataset(client: TestClient) -> None:
