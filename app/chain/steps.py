@@ -1,5 +1,6 @@
 import re
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from app.chain.query_interpreter import QueryInterpreter
 from app.chain.runnable import Runnable
@@ -13,6 +14,7 @@ from app.schemas import (
 
 ANSWER_START_MARKER = "<<<SVAR_START>>>"
 ANSWER_END_MARKER = "<<<SVAR_SLUT>>>"
+LLM_RUNNER_TIMEOUT_SECONDS = 20
 logger = logging.getLogger("uvicorn.error")
 
 
@@ -178,16 +180,37 @@ class LLMRunner(Runnable[PromptBuilderOutput, LLMRunnerOutput]):
         self.generator.model.generation_config.max_new_tokens = settings.model_max_new_tokens
         self.generator.model.generation_config.do_sample = settings.model_do_sample
         self.generator.model.generation_config.max_length = None
+        self.invoke_timeout_seconds = LLM_RUNNER_TIMEOUT_SECONDS
 
     def invoke(self, input_data: PromptBuilderOutput) -> LLMRunnerOutput:
+        timeout_seconds = getattr(
+            self,
+            "invoke_timeout_seconds",
+            LLM_RUNNER_TIMEOUT_SECONDS,
+        )
+
         try:
-            result = self.generator(
-                input_data.prompt,
-                return_full_text=settings.model_return_full_text,
-                clean_up_tokenization_spaces=False,
-            )
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self.generator,
+                    input_data.prompt,
+                    return_full_text=settings.model_return_full_text,
+                    clean_up_tokenization_spaces=False,
+                )
+                result = future.result(timeout=timeout_seconds)
 
             raw_output = result[0]["generated_text"]
+
+        except FuturesTimeoutError:
+            logger.exception(
+                "Model execution timed out timeout_seconds=%s question_length=%s",
+                timeout_seconds,
+                len(input_data.question),
+            )
+            raw_output = (
+                "Modellfel: timeout under modellkörning "
+                f"(>{timeout_seconds} sekunder)."
+            )
 
         except Exception as error:
             logger.exception(

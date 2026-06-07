@@ -7,6 +7,7 @@ from app.chain.steps import (
 )
 from app.chain.query_interpreter import QueryInterpreter
 from app.schemas import LLMRunnerOutput, PromptBuilderInput
+import time
 
 
 def _sample_stats() -> dict:
@@ -366,6 +367,33 @@ def test_llm_runner_handles_generator_exception_and_parser_fallbacks() -> None:
 
     assert "Modellfel:" in runner_output.raw_output
     assert "synthetic model crash" in runner_output.raw_output
+
+    parsed = ResponseParser().invoke(runner_output)
+
+    assert "Estimerad 1RM i Deadlift" in parsed.answer
+    assert "186.0 kg" in parsed.answer
+
+
+def test_llm_runner_timeout_wrapper_and_parser_fallback() -> None:
+    class SlowGenerator:
+        def __call__(self, *args, **kwargs):
+            time.sleep(0.05)
+            return [{"generated_text": "detta ska inte returneras"}]
+
+    runner = object.__new__(LLMRunner)
+    runner.generator = SlowGenerator()
+    runner.invoke_timeout_seconds = 0.01
+
+    prompt_output = PromptBuilder().invoke(
+        PromptBuilderInput(
+            question="Vad är estimerad 1RM i deadlift?",
+            stats=_sample_stats(),
+        )
+    )
+
+    runner_output = runner.invoke(prompt_output)
+
+    assert "Modellfel: timeout" in runner_output.raw_output
 
     parsed = ResponseParser().invoke(runner_output)
 
