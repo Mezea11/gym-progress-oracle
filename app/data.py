@@ -1,4 +1,5 @@
 from io import BytesIO
+import logging
 
 import pandas as pd
 from fastapi import HTTPException, UploadFile
@@ -13,6 +14,7 @@ from app.database import (
 
 # vi sätter våra kolumner. dessa kolumner måste finnas
 REQUIRED_COLUMNS = {"date", "exercise", "weight", "reps", "sets"}
+logger = logging.getLogger(__name__)
 
 initialize_database()
 
@@ -78,6 +80,11 @@ def validate_training_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def upload_dataset(file: UploadFile) -> dict:
+    logger.info(
+        "Starting dataset upload",
+        extra={"filename": file.filename},
+    )
+
     # vi tillåter bara csv laddas upp i vår första version
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(
@@ -105,6 +112,14 @@ def upload_dataset(file: UploadFile) -> dict:
             detail="CSV file is empty or invalid.",
         )
     except Exception as error:  # fallback kod om den inte kunde läsa in csv filen
+        logger.exception(
+            "CSV read failed",
+            extra={
+                "filename": file.filename,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+            },
+        )
         raise HTTPException(
             status_code=400,
             detail=f"Could not read CSV file: {error}",
@@ -113,6 +128,15 @@ def upload_dataset(file: UploadFile) -> dict:
     validated_dataframe = validate_training_dataframe(df)
 
     save_dataset_to_db(validated_dataframe)
+
+    logger.info(
+        "Dataset upload succeeded",
+        extra={
+            "filename": file.filename,
+            "rows": len(validated_dataframe),
+            "column_count": len(validated_dataframe.columns),
+        },
+    )
 
     return {  # returnera hela vårt dataset
         "rows": len(validated_dataframe),
@@ -146,6 +170,7 @@ def clear_dataset() -> dict[str, int | str]:
 
 
 def get_dataset_stats() -> dict:
+    logger.info("Building dataset stats")
     df = get_current_dataset().copy()
 
     # här räknar vi ut volym: vikt * reps * sets
@@ -199,6 +224,7 @@ def get_dataset_insights() -> dict:
     Alla beräkningar görs i Pandas.
     """
 
+    logger.info("Building dataset insights")
     dataframe = get_current_dataset().copy()
 
     dataframe["date"] = pd.to_datetime(dataframe["date"], errors="coerce")

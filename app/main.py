@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import FileResponse
@@ -9,6 +10,7 @@ from app.data import clear_dataset, get_dataset_insights, get_dataset_stats, upl
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Gym Progress Oracle",
@@ -34,17 +36,32 @@ def health_check() -> dict[str, str]:
 # Första version av vår upload, ska testa att vår CSV går att laddas upp och valideras korrekt
 @app.post("/data/upload")
 def upload_data(file: UploadFile = File(...)) -> dict:
-    return upload_dataset(file)
+    logger.info(
+        "Dataset upload started",
+        extra={"filename": file.filename},
+    )
+    result = upload_dataset(file)
+    logger.info(
+        "Dataset upload completed",
+        extra={
+            "filename": file.filename,
+            "rows": result.get("rows"),
+            "column_count": len(result.get("columns", [])),
+        },
+    )
+    return result
 
 
 # Hämta ut statistik från vår CSV, gör kalkulationer på vår data
 @app.get("/data/stats")
 def data_stats() -> dict:
+    logger.info("Dataset stats requested")
     return get_dataset_stats()
 
 
 @app.get("/data/insights")
 def data_insights() -> dict:
+    logger.info("Dataset insights requested")
     return get_dataset_insights()
 
 
@@ -57,6 +74,10 @@ def clear_data() -> dict[str, int | str]:
 
 @app.post("/ai/ask", response_model=AskResponse)
 def ask_ai(request: AskRequest) -> AskResponse:
+    logger.info(
+        "AI question received",
+        extra={"question_length": len(request.question)},
+    )
     stats = get_dataset_stats()
     insights = get_dataset_insights()
 

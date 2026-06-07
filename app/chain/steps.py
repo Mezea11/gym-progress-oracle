@@ -1,4 +1,5 @@
 import re
+import logging
 
 from app.chain.query_interpreter import QueryInterpreter
 from app.chain.runnable import Runnable
@@ -12,6 +13,7 @@ from app.schemas import (
 
 ANSWER_START_MARKER = "<<<SVAR_START>>>"
 ANSWER_END_MARKER = "<<<SVAR_SLUT>>>"
+logger = logging.getLogger(__name__)
 
 
 class PromptBuilder(Runnable[PromptBuilderInput, PromptBuilderOutput]):
@@ -188,6 +190,14 @@ class LLMRunner(Runnable[PromptBuilderOutput, LLMRunnerOutput]):
             raw_output = result[0]["generated_text"]
 
         except Exception as error:
+            logger.exception(
+                "Model execution failed",
+                extra={
+                    "error_type": type(error).__name__,
+                    "error_message": str(error),
+                    "question_length": len(input_data.question),
+                },
+            )
             raw_output = f"Modellfel: {error}"
 
         return LLMRunnerOutput(
@@ -223,6 +233,10 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
             answer = self._cleanup_raw_output(raw_output)
 
         if self._model_failed(answer, input_data.facts_summary):
+            logger.warning(
+                "Response parser fallback used",
+                extra={"question_length": len(input_data.question)},
+            )
             answer = self._build_fallback_answer(
                 question=input_data.question,
                 stats=input_data.stats,
