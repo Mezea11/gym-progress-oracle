@@ -308,6 +308,17 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
             available_exercises=stats.get("exercises", []),
         )
         referenced_exercises = interpreted_intent.referenced_exercises
+        normalized_question = self._normalize_text(question)
+        insights = stats.get("insights", {})
+
+        insights_answer = self._build_insights_fallback_answer(
+            normalized_question=normalized_question,
+            insights=insights,
+            referenced_exercises=referenced_exercises,
+        )
+
+        if insights_answer:
+            return insights_answer
 
         if interpreted_intent.metric == "estimated_1rm":
             one_rm_by_exercise = stats.get("estimated_1rm_by_exercise", {})
@@ -462,18 +473,24 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
 
         if interpreted_intent.intent == "compare_metric" and interpreted_intent.metric == "unknown":
             one_rm_by_exercise = stats.get("estimated_1rm_by_exercise", {})
-            volume_by_exercise = stats.get("total_volume_by_exercise", {})
 
-            if one_rm_by_exercise and volume_by_exercise:
+            if one_rm_by_exercise and len(referenced_exercises) >= 2:
+                compare_answer = self._build_compare_estimated_1rm_answer(
+                    one_rm_by_exercise=one_rm_by_exercise,
+                    referenced_exercises=referenced_exercises,
+                )
+
+                if compare_answer:
+                    return compare_answer
+
+            if one_rm_by_exercise:
                 top_one_rm_exercise = max(
                     one_rm_by_exercise, key=one_rm_by_exercise.get)
-                top_volume_exercise = max(
-                    volume_by_exercise, key=volume_by_exercise.get)
+                top_one_rm_value = one_rm_by_exercise[top_one_rm_exercise]
 
                 return (
-                    "Metrikerna är inte direkt jämförbara i samma enhet. "
-                    f"Högst estimerad 1RM: {top_one_rm_exercise} ({one_rm_by_exercise[top_one_rm_exercise]:.1f} kg). "
-                    f"Högst total volym: {top_volume_exercise} ({volume_by_exercise[top_volume_exercise]:.1f} kg)."
+                    "Frågan saknar tydlig metrik, så jag jämför estimerad 1RM. "
+                    f"Högst estimerad 1RM just nu är {top_one_rm_exercise} ({top_one_rm_value:.1f} kg)."
                 )
 
         # Sista utvägen om vi inte med säkerhet kan svara på intent.
@@ -491,6 +508,233 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
             f"{exercise}: {float(value):.1f} {unit}"
             for exercise, value in sorted_items
         )
+
+    def _build_compare_estimated_1rm_answer(
+        self,
+        one_rm_by_exercise: dict[str, float],
+        referenced_exercises: list[str],
+    ) -> str:
+        first_exercise = referenced_exercises[0]
+        second_exercise = referenced_exercises[1]
+        first_value = one_rm_by_exercise.get(first_exercise)
+        second_value = one_rm_by_exercise.get(second_exercise)
+
+        if first_value is None or second_value is None:
+            return ""
+
+        if first_value > second_value:
+            return (
+                f"{first_exercise} har högre estimerad 1RM ({first_value:.1f} kg) "
+                f"än {second_exercise} ({second_value:.1f} kg)."
+            )
+
+        if second_value > first_value:
+            return (
+                f"{second_exercise} har högre estimerad 1RM ({second_value:.1f} kg) "
+                f"än {first_exercise} ({first_value:.1f} kg)."
+            )
+
+        return (
+            f"{first_exercise} och {second_exercise} har samma estimerade 1RM "
+            f"({first_value:.1f} kg)."
+        )
+
+    def _build_insights_fallback_answer(
+        self,
+        normalized_question: str,
+        insights: dict,
+        referenced_exercises: list[str],
+    ) -> str:
+        if not insights:
+            return ""
+
+        if self._contains_any_phrase(
+            normalized_question,
+            {
+                "best sets",
+                "best set",
+                "toppset",
+                "toppset",
+                "basta setet",
+                "hogs t estimerad 1rm for varje ovning",
+            },
+        ):
+            return self._format_best_sets_answer(
+                best_sets=insights.get("best_sets_by_exercise", []),
+                referenced_exercises=referenced_exercises,
+            )
+
+        if self._contains_any_phrase(
+            normalized_question,
+            {
+                "progression",
+                "first vs latest",
+                "change_kg",
+                "change percent",
+                "forbattrats",
+                "forbattrats",
+                "forandrats",
+            },
+        ):
+            return self._format_progression_answer(
+                progression_rows=insights.get("progression_by_exercise", []),
+                normalized_question=normalized_question,
+                referenced_exercises=referenced_exercises,
+            )
+
+        if self._contains_any_phrase(
+            normalized_question,
+            {
+                "training frequency",
+                "training_frequency",
+                "hur ofta",
+                "traningsfrekvens",
+                "unika traningsdagar",
+                "training days",
+            },
+        ):
+            return self._format_training_frequency_answer(
+                training_frequency=insights.get("training_frequency", {}),
+            )
+
+        if self._contains_any_phrase(
+            normalized_question,
+            {
+                "volume_by_month",
+                "volym per manad",
+                "volym per month",
+                "total volym per manad",
+                "manad for manad",
+            },
+        ):
+            return self._format_volume_by_month_answer(
+                volume_rows=insights.get("volume_by_month", []),
+            )
+
+        return ""
+
+    def _format_best_sets_answer(
+        self,
+        best_sets: list[dict],
+        referenced_exercises: list[str],
+    ) -> str:
+        if not best_sets:
+            return ""
+
+        selected_rows = best_sets
+
+        if referenced_exercises:
+            referenced_set = set(referenced_exercises)
+            selected_rows = [
+                row
+                for row in best_sets
+                if row.get("exercise") in referenced_set
+            ]
+
+        if not selected_rows:
+            return ""
+
+        preview = ", ".join(
+            (
+                f"{row['exercise']}: {float(row['estimated_1rm']):.1f} kg "
+                f"({row['date']}, {float(row['weight']):.1f} kg x {int(row['reps'])})"
+            )
+            for row in selected_rows[:3]
+        )
+
+        return f"Toppset per övning baserat på estimerad 1RM: {preview}."
+
+    def _format_progression_answer(
+        self,
+        progression_rows: list[dict],
+        normalized_question: str,
+        referenced_exercises: list[str],
+    ) -> str:
+        if not progression_rows:
+            return ""
+
+        if "storst" in normalized_question and "change_kg" in normalized_question:
+            top_row = progression_rows[0]
+            return (
+                f"Störst förändring i kg har {top_row['exercise']} med {float(top_row['change_kg']):.1f} kg "
+                f"({top_row['first_date']} till {top_row['latest_date']})."
+            )
+
+        if referenced_exercises:
+            referenced_set = set(referenced_exercises)
+            matched_rows = [
+                row
+                for row in progression_rows
+                if row.get("exercise") in referenced_set
+            ]
+
+            if matched_rows:
+                preview = ", ".join(
+                    (
+                        f"{row['exercise']}: {float(row['first_estimated_1rm']):.1f} -> "
+                        f"{float(row['latest_estimated_1rm']):.1f} kg "
+                        f"(Δ {float(row['change_kg']):.1f} kg)"
+                    )
+                    for row in matched_rows[:2]
+                )
+                return f"Progression: {preview}."
+
+        preview = ", ".join(
+            (
+                f"{row['exercise']}: {float(row['first_estimated_1rm']):.1f} -> "
+                f"{float(row['latest_estimated_1rm']):.1f} kg "
+                f"(Δ {float(row['change_kg']):.1f} kg)"
+            )
+            for row in progression_rows[:3]
+        )
+
+        return f"Progression per övning (urval): {preview}."
+
+    def _format_training_frequency_answer(self, training_frequency: dict) -> str:
+        if not training_frequency:
+            return ""
+
+        return (
+            f"Du har {int(training_frequency.get('total_training_days', 0))} träningsdagar "
+            f"mellan {training_frequency.get('first_training_date')} och {training_frequency.get('latest_training_date')}. "
+            f"Snittet är {float(training_frequency.get('average_training_days_per_week', 0.0)):.1f} dagar per vecka."
+        )
+
+    def _format_volume_by_month_answer(self, volume_rows: list[dict]) -> str:
+        if not volume_rows:
+            return ""
+
+        preview = ", ".join(
+            f"{row['month']}: {float(row['total_volume']):.1f} kg"
+            for row in volume_rows[:3]
+        )
+
+        return f"Total volym per månad (första månaderna): {preview}."
+
+    def _contains_any_phrase(self, normalized_text: str, phrases: set[str]) -> bool:
+        for phrase in phrases:
+            if phrase in normalized_text:
+                return True
+
+        return False
+
+    def _normalize_text(self, value: str) -> str:
+        normalized_text = value.lower().strip()
+
+        replacements = {
+            "å": "a",
+            "ä": "a",
+            "ö": "o",
+        }
+
+        for source_character, target_character in replacements.items():
+            normalized_text = normalized_text.replace(source_character, target_character)
+
+        normalized_text = normalized_text.replace("-", " ")
+        normalized_text = re.sub(r"[^a-z0-9_\s+]", " ", normalized_text)
+        normalized_text = re.sub(r"\s+", " ", normalized_text).strip()
+
+        return normalized_text
 
     def _polish_swedish_text(self, text: str) -> str:
         replacements = {

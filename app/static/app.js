@@ -78,6 +78,10 @@ function clearChat() {
   setStatus(chatStatus, "Chatten är rensad.", "success");
 }
 
+function resetClearStatusMessage() {
+  setStatus(clearStatus, "", "");
+}
+
 function getApiError(error, fallback) {
   if (error && typeof error === "object" && "detail" in error) {
     return String(error.detail);
@@ -117,6 +121,9 @@ async function uploadCsv() {
       `Uppladdning klar. Rader: ${data.rows}, kolumner: ${data.columns.length}.`,
       "success",
     );
+    // Ny uppladdning innebär ny datastatus, så vi tar bort gammalt
+    // "Datan rensad"-meddelande från tidigare state.
+    resetClearStatusMessage();
     if (metricRows) {
       metricRows.textContent = String(data.rows);
     }

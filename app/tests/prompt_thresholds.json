@@ -1,0 +1,11 @@
+{
+  "overall_min_pass_rate": 0.9,
+  "category_min_pass_rate": {
+    "compare": 0.95,
+    "best_sets": 0.85,
+    "progression": 0.85,
+    "training_frequency": 0.85,
+    "volume_by_month": 0.85,
+    "fallback_expected": 0.95
+  }
+}

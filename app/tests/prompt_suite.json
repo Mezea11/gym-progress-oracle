@@ -1,0 +1,107 @@
+[
+  {
+    "name": "compare_deadlift_weighted_chin",
+    "category": "compare",
+    "prompt": "compare deadlift and weighted chin",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["deadlift", "weighted"],
+      ["estimerad", "1rm"]
+    ]
+  },
+  {
+    "name": "best_sets_overview",
+    "category": "best_sets",
+    "prompt": "Vilket är bästa setet per övning?",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["toppset"],
+      ["best"],
+      ["övning"]
+    ]
+  },
+  {
+    "name": "best_sets_specific_exercises",
+    "category": "best_sets",
+    "prompt": "Ge mig toppset för deadlift och bench press.",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["deadlift"],
+      ["bench"]
+    ]
+  },
+  {
+    "name": "progression_overview",
+    "category": "progression",
+    "prompt": "Hur ser progressionen ut per övning?",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["progression"],
+      ["förändring"],
+      ["delta"],
+      ["\u0394"]
+    ]
+  },
+  {
+    "name": "progression_largest_change",
+    "category": "progression",
+    "prompt": "Vilken övning har störst change_kg?",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["störst"],
+      ["kg"],
+      ["förändring"]
+    ]
+  },
+  {
+    "name": "training_frequency_overview",
+    "category": "training_frequency",
+    "prompt": "Hur ofta tränar jag?",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["träningsdag"],
+      ["vecka"]
+    ]
+  },
+  {
+    "name": "training_frequency_keyword",
+    "category": "training_frequency",
+    "prompt": "Visa training_frequency.",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["träningsdag"],
+      ["vecka"]
+    ]
+  },
+  {
+    "name": "volume_by_month_overview",
+    "category": "volume_by_month",
+    "prompt": "Visa total volym per månad.",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["volym"],
+      ["månad"]
+    ]
+  },
+  {
+    "name": "volume_by_month_keyword",
+    "category": "volume_by_month",
+    "prompt": "Ge volume_by_month.",
+    "allow_fallback": false,
+    "must_include_any": [
+      ["volym"],
+      ["månad"]
+    ]
+  },
+  {
+    "name": "fallback_expected_unknown_question",
+    "category": "fallback_expected",
+    "prompt": "Vad är min VO2max?",
+    "allow_fallback": true,
+    "must_include_any": [
+      ["datan"],
+      ["verifierade fakta"],
+      ["modellen kunde inte"]
+    ]
+  }
+]

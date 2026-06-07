@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.chain.pipeline import gym_oracle_chain
 from app.schemas import AskRequest, AskResponse, PromptBuilderInput
-from app.data import clear_dataset, get_dataset_stats, upload_dataset
+from app.data import clear_dataset, get_dataset_insights, get_dataset_stats, upload_dataset
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -43,6 +43,11 @@ def data_stats() -> dict:
     return get_dataset_stats()
 
 
+@app.get("/data/insights")
+def data_insights() -> dict:
+    return get_dataset_insights()
+
+
 @app.delete("/data/clear")
 def clear_data() -> dict[str, int | str]:
     return clear_dataset()
@@ -53,10 +58,16 @@ def clear_data() -> dict[str, int | str]:
 @app.post("/ai/ask", response_model=AskResponse)
 def ask_ai(request: AskRequest) -> AskResponse:
     stats = get_dataset_stats()
+    insights = get_dataset_insights()
+
+    chain_stats = {
+        **stats,
+        "insights": insights,
+    }
 
     chain_input = PromptBuilderInput(
         question=request.question,
-        stats=stats,
+        stats=chain_stats,
     )
 
     result = gym_oracle_chain.invoke(chain_input)

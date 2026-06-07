@@ -32,6 +32,64 @@ def _sample_stats() -> dict:
     }
 
 
+def _sample_stats_with_insights() -> dict:
+    base_stats = _sample_stats()
+    base_stats["insights"] = {
+        "best_sets_by_exercise": [
+            {
+                "exercise": "Deadlift",
+                "date": "2026-01-02",
+                "weight": 180.0,
+                "reps": 1,
+                "sets": 3,
+                "estimated_1rm": 186.0,
+            },
+            {
+                "exercise": "Bench Press",
+                "date": "2026-01-01",
+                "weight": 100.0,
+                "reps": 3,
+                "sets": 3,
+                "estimated_1rm": 110.0,
+            },
+        ],
+        "progression_by_exercise": [
+            {
+                "exercise": "Deadlift",
+                "first_date": "2023-01-01",
+                "latest_date": "2026-01-02",
+                "first_estimated_1rm": 140.0,
+                "latest_estimated_1rm": 186.0,
+                "change_kg": 46.0,
+                "change_percent": 32.9,
+            },
+            {
+                "exercise": "Bench Press",
+                "first_date": "2023-01-01",
+                "latest_date": "2026-01-01",
+                "first_estimated_1rm": 90.0,
+                "latest_estimated_1rm": 110.0,
+                "change_kg": 20.0,
+                "change_percent": 22.2,
+            },
+        ],
+        "training_frequency": {
+            "total_training_days": 3,
+            "first_training_date": "2023-01-01",
+            "latest_training_date": "2026-01-02",
+            "average_training_days_per_week": 1.0,
+            "most_active_month": "2026-01",
+            "most_active_month_training_days": 2,
+        },
+        "volume_by_month": [
+            {"month": "2023-01", "total_volume": 800.0},
+            {"month": "2023-02", "total_volume": 710.0},
+        ],
+    }
+
+    return base_stats
+
+
 def test_prompt_builder_includes_answer_markers() -> None:
     builder = PromptBuilder()
     input_data = PromptBuilderInput(
@@ -172,3 +230,54 @@ def test_response_parser_handles_1rm_difference_between_two_exercises() -> None:
 
     assert "Skillnaden i estimerad 1RM" in parsed.answer
     assert "46.5 kg" in parsed.answer
+
+
+def test_response_parser_handles_best_sets_prompt_from_insights() -> None:
+    parser = ResponseParser()
+
+    model_output = LLMRunnerOutput(
+        question="Visa best sets by exercise.",
+        raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
+        model="HuggingFaceTB/SmolLM2-135M-Instruct",
+        facts_summary="irrelevant",
+        stats=_sample_stats_with_insights(),
+    )
+
+    parsed = parser.invoke(model_output)
+
+    assert "Toppset per övning" in parsed.answer
+    assert "Deadlift" in parsed.answer
+
+
+def test_response_parser_handles_training_frequency_prompt_from_insights() -> None:
+    parser = ResponseParser()
+
+    model_output = LLMRunnerOutput(
+        question="Hur ofta tränar jag?",
+        raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
+        model="HuggingFaceTB/SmolLM2-135M-Instruct",
+        facts_summary="irrelevant",
+        stats=_sample_stats_with_insights(),
+    )
+
+    parsed = parser.invoke(model_output)
+
+    assert "träningsdagar" in parsed.answer
+    assert "3" in parsed.answer
+
+
+def test_response_parser_defaults_compare_without_metric_to_estimated_1rm() -> None:
+    parser = ResponseParser()
+
+    model_output = LLMRunnerOutput(
+        question="compare deadlift and squat",
+        raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
+        model="HuggingFaceTB/SmolLM2-135M-Instruct",
+        facts_summary="irrelevant",
+        stats=_sample_stats(),
+    )
+
+    parsed = parser.invoke(model_output)
+
+    assert "har högre estimerad 1RM" in parsed.answer
+    assert "Deadlift" in parsed.answer

@@ -83,6 +83,13 @@ def test_stats_returns_404_without_uploaded_dataset(client: TestClient) -> None:
     assert response.json()["detail"] == "No dataset has been uploaded yet."
 
 
+def test_insights_returns_404_without_uploaded_dataset(client: TestClient) -> None:
+    response = client.get("/data/insights")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No dataset has been uploaded yet."
+
+
 def test_stats_returns_summary_after_upload(client: TestClient) -> None:
     csv_bytes = (
         b"date,exercise,weight,reps,sets\n"
@@ -104,6 +111,108 @@ def test_stats_returns_summary_after_upload(client: TestClient) -> None:
     assert body["exercise_count"] == 2
     assert "estimated_1rm_by_exercise" in body
     assert "total_volume_by_exercise" in body
+
+
+def test_insights_returns_expected_sections_after_upload(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2023-01-01,Deadlift,100,5,1\n"
+        b"2023-01-01,Bench Press,60,5,1\n"
+        b"2023-02-01,Deadlift,120,3,1\n"
+        b"2023-02-01,Bench Press,70,5,1\n"
+        b"2023-03-01,Deadlift,140,1,1\n"
+    )
+
+    upload_response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+    assert upload_response.status_code == 200
+
+    response = client.get("/data/insights")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert "best_sets_by_exercise" in body
+    assert "progression_by_exercise" in body
+    assert "training_frequency" in body
+    assert "volume_by_month" in body
+
+
+def test_insights_best_set_has_expected_top_exercise(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2023-01-01,Deadlift,100,5,1\n"
+        b"2023-01-01,Bench Press,60,5,1\n"
+        b"2023-02-01,Deadlift,120,3,1\n"
+        b"2023-02-01,Bench Press,70,5,1\n"
+        b"2023-03-01,Deadlift,140,1,1\n"
+    )
+
+    upload_response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+    assert upload_response.status_code == 200
+
+    response = client.get("/data/insights")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["best_sets_by_exercise"][0]["exercise"] == "Deadlift"
+
+
+def test_insights_training_frequency_counts_unique_days(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2023-01-01,Deadlift,100,5,1\n"
+        b"2023-01-01,Bench Press,60,5,1\n"
+        b"2023-02-01,Deadlift,120,3,1\n"
+        b"2023-02-01,Bench Press,70,5,1\n"
+        b"2023-03-01,Deadlift,140,1,1\n"
+    )
+
+    upload_response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+    assert upload_response.status_code == 200
+
+    response = client.get("/data/insights")
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["training_frequency"]["total_training_days"] == 3
+
+
+def test_insights_volume_by_month_sums_expected_values(client: TestClient) -> None:
+    csv_bytes = (
+        b"date,exercise,weight,reps,sets\n"
+        b"2023-01-01,Deadlift,100,5,1\n"
+        b"2023-01-01,Bench Press,60,5,1\n"
+        b"2023-02-01,Deadlift,120,3,1\n"
+        b"2023-02-01,Bench Press,70,5,1\n"
+        b"2023-03-01,Deadlift,140,1,1\n"
+    )
+
+    upload_response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+    assert upload_response.status_code == 200
+
+    response = client.get("/data/insights")
+    body = response.json()
+
+    assert response.status_code == 200
+
+    month_to_volume = {
+        row["month"]: row["total_volume"]
+        for row in body["volume_by_month"]
+    }
+
+    assert set(month_to_volume.keys()) == {"2023-01", "2023-02", "2023-03"}
+    assert month_to_volume["2023-01"] == 800.0
 
 
 def test_ask_ai_uses_mocked_chain_result(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

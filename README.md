@@ -291,6 +291,18 @@ Kör endast appens tester med verbose output:
 uv run pytest app/tests/ -v
 ```
 
+Kör prompt-regression med kategori-trösklar (CI-gate):
+
+```powershell
+uv run pytest app/tests/test_prompt_regression.py -v
+```
+
+Kör snabb prompt-rapport i tabellformat:
+
+```powershell
+uv run python -m app.tests.prompt_eval_cli --enforce-thresholds
+```
+
 ## Testtäckning (KK2)
 
 Projektet innehåller tester för flera olika aspekter enligt KK2:
