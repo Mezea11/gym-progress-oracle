@@ -67,6 +67,10 @@ Vanliga variabler:
 - `DATABASE_PATH`
 - `DATABASE_TABLE_NAME`
 
+## Sample-data
+
+Använd `sample_data/christian_mock_gym_progression_2023_2026.csv` som projektets sample-data när du testar upload, statistik och AI-frågor.
+
 ## API-endpoints
 
 ### `GET /health`
