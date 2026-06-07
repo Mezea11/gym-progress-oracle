@@ -1,6 +1,7 @@
 from app.chain.steps import (
     ANSWER_END_MARKER,
     ANSWER_START_MARKER,
+    LLMRunner,
     PromptBuilder,
     ResponseParser,
 )
@@ -281,3 +282,29 @@ def test_response_parser_defaults_compare_without_metric_to_estimated_1rm() -> N
 
     assert "har högre estimerad 1RM" in parsed.answer
     assert "Deadlift" in parsed.answer
+
+
+def test_llm_runner_handles_generator_exception_and_parser_fallbacks() -> None:
+    class FailingGenerator:
+        def __call__(self, *args, **kwargs):
+            raise RuntimeError("synthetic model crash")
+
+    runner = object.__new__(LLMRunner)
+    runner.generator = FailingGenerator()
+
+    prompt_output = PromptBuilder().invoke(
+        PromptBuilderInput(
+            question="Vad är estimerad 1RM i deadlift?",
+            stats=_sample_stats(),
+        )
+    )
+
+    runner_output = runner.invoke(prompt_output)
+
+    assert "Modellfel:" in runner_output.raw_output
+    assert "synthetic model crash" in runner_output.raw_output
+
+    parsed = ResponseParser().invoke(runner_output)
+
+    assert "Estimerad 1RM i Deadlift" in parsed.answer
+    assert "186.0 kg" in parsed.answer
