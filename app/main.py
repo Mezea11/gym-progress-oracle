@@ -69,7 +69,8 @@ def clear_data() -> dict[str, int | str]:
 
 @app.post("/ai/ask", response_model=AskResponse)
 def ask_ai(request: AskRequest) -> AskResponse:
-    logger.info("AI question received question_length=%s", len(request.question))
+    logger.info("AI question received question_length=%s",
+                len(request.question))
     try:
         stats = get_dataset_stats()
         insights = get_dataset_insights()
