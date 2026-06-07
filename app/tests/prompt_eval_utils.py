@@ -37,7 +37,8 @@ def normalize_text(value: str) -> str:
     normalized_text = value.lower().strip()
 
     for source_character, target_character in {"å": "a", "ä": "a", "ö": "o"}.items():
-        normalized_text = normalized_text.replace(source_character, target_character)
+        normalized_text = normalized_text.replace(
+            source_character, target_character)
 
     normalized_text = normalized_text.replace("-", " ")
     normalized_text = re.sub(r"[^a-z0-9\s]", " ", normalized_text)
@@ -147,7 +148,8 @@ def build_pass_rates(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def format_results_table(results: list[dict[str, Any]]) -> str:
-    headers = ["Category", "Case", "Status", "Fallback", "Pass", "Answer Preview"]
+    headers = ["Category", "Case", "Status",
+               "Fallback", "Pass", "Answer Preview"]
 
     rows = []
     for result in results:
