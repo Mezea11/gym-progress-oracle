@@ -304,7 +304,8 @@ def test_upload_rejects_empty_csv(client: TestClient) -> None:
 
 
 def test_upload_rejects_too_large_csv(client: TestClient) -> None:
-    csv_bytes = b"date,exercise,weight,reps,sets\n" + (b"a" * (2 * 1024 * 1024 + 1))
+    csv_bytes = b"date,exercise,weight,reps,sets\n" + \
+        (b"a" * (2 * 1024 * 1024 + 1))
 
     response = client.post(
         "/data/upload",
