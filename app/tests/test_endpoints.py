@@ -303,6 +303,18 @@ def test_upload_rejects_empty_csv(client: TestClient) -> None:
     assert response.json()["detail"] == "Uploaded CSV file is empty."
 
 
+def test_upload_rejects_too_large_csv(client: TestClient) -> None:
+    csv_bytes = b"date,exercise,weight,reps,sets\n" + (b"a" * (2 * 1024 * 1024 + 1))
+
+    response = client.post(
+        "/data/upload",
+        files={"file": ("gym_progress.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 413
+    assert "Max size is 2 MB" in response.json()["detail"]
+
+
 def test_upload_rejects_text_in_weight_and_keeps_database_clean(client: TestClient) -> None:
     csv_bytes = (
         b"date,exercise,weight,reps,sets\n"

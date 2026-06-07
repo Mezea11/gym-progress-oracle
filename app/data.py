@@ -14,6 +14,7 @@ from app.database import (
 
 # vi sätter våra kolumner. dessa kolumner måste finnas
 REQUIRED_COLUMNS = {"date", "exercise", "weight", "reps", "sets"}
+MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024
 logger = logging.getLogger("uvicorn.error")
 
 initialize_database()
@@ -95,6 +96,12 @@ def upload_dataset(file: UploadFile) -> dict:
 
     try:
         content = file.file.read()
+
+        if len(content) > MAX_UPLOAD_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail="CSV file is too large. Max size is 2 MB.",
+            )
 
         if not content:  # får inte vara tom
             raise HTTPException(
