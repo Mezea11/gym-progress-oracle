@@ -10,7 +10,7 @@ from app.data import clear_dataset, get_dataset_insights, get_dataset_stats, upl
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(
     title="Gym Progress Oracle",
@@ -36,18 +36,13 @@ def health_check() -> dict[str, str]:
 # Första version av vår upload, ska testa att vår CSV går att laddas upp och valideras korrekt
 @app.post("/data/upload")
 def upload_data(file: UploadFile = File(...)) -> dict:
-    logger.info(
-        "Dataset upload started",
-        extra={"filename": file.filename},
-    )
+    logger.info("Dataset upload started filename=%s", file.filename)
     result = upload_dataset(file)
     logger.info(
-        "Dataset upload completed",
-        extra={
-            "filename": file.filename,
-            "rows": result.get("rows"),
-            "column_count": len(result.get("columns", [])),
-        },
+        "Dataset upload completed filename=%s rows=%s column_count=%s",
+        file.filename,
+        result.get("rows"),
+        len(result.get("columns", [])),
     )
     return result
 
@@ -74,10 +69,7 @@ def clear_data() -> dict[str, int | str]:
 
 @app.post("/ai/ask", response_model=AskResponse)
 def ask_ai(request: AskRequest) -> AskResponse:
-    logger.info(
-        "AI question received",
-        extra={"question_length": len(request.question)},
-    )
+    logger.info("AI question received question_length=%s", len(request.question))
     stats = get_dataset_stats()
     insights = get_dataset_insights()
 

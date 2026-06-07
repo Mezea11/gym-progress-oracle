@@ -13,7 +13,7 @@ from app.schemas import (
 
 ANSWER_START_MARKER = "<<<SVAR_START>>>"
 ANSWER_END_MARKER = "<<<SVAR_SLUT>>>"
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 
 class PromptBuilder(Runnable[PromptBuilderInput, PromptBuilderOutput]):
@@ -175,14 +175,14 @@ class LLMRunner(Runnable[PromptBuilderOutput, LLMRunnerOutput]):
             pipeline_kwargs["token"] = settings.huggingface_token
 
         self.generator = pipeline(**pipeline_kwargs)
+        self.generator.model.generation_config.max_new_tokens = settings.model_max_new_tokens
+        self.generator.model.generation_config.do_sample = settings.model_do_sample
+        self.generator.model.generation_config.max_length = None
 
     def invoke(self, input_data: PromptBuilderOutput) -> LLMRunnerOutput:
         try:
             result = self.generator(
                 input_data.prompt,
-                # Inställningar kommer från config för att kunna styras via .env.
-                max_new_tokens=settings.model_max_new_tokens,
-                do_sample=settings.model_do_sample,
                 return_full_text=settings.model_return_full_text,
                 clean_up_tokenization_spaces=False,
             )
@@ -191,12 +191,10 @@ class LLMRunner(Runnable[PromptBuilderOutput, LLMRunnerOutput]):
 
         except Exception as error:
             logger.exception(
-                "Model execution failed",
-                extra={
-                    "error_type": type(error).__name__,
-                    "error_message": str(error),
-                    "question_length": len(input_data.question),
-                },
+                "Model execution failed error_type=%s error_message=%s question_length=%s",
+                type(error).__name__,
+                str(error),
+                len(input_data.question),
             )
             raw_output = f"Modellfel: {error}"
 
@@ -234,8 +232,8 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
 
         if self._model_failed(answer, input_data.facts_summary):
             logger.warning(
-                "Response parser fallback used",
-                extra={"question_length": len(input_data.question)},
+                "Response parser fallback used question_length=%s",
+                len(input_data.question),
             )
             answer = self._build_fallback_answer(
                 question=input_data.question,
@@ -742,7 +740,8 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
         }
 
         for source_character, target_character in replacements.items():
-            normalized_text = normalized_text.replace(source_character, target_character)
+            normalized_text = normalized_text.replace(
+                source_character, target_character)
 
         normalized_text = normalized_text.replace("-", " ")
         normalized_text = re.sub(r"[^a-z0-9_\s+]", " ", normalized_text)

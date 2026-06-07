@@ -14,7 +14,7 @@ from app.database import (
 
 # vi sätter våra kolumner. dessa kolumner måste finnas
 REQUIRED_COLUMNS = {"date", "exercise", "weight", "reps", "sets"}
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
 
 initialize_database()
 
@@ -80,13 +80,14 @@ def validate_training_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def upload_dataset(file: UploadFile) -> dict:
-    logger.info(
-        "Starting dataset upload",
-        extra={"filename": file.filename},
-    )
-
     # vi tillåter bara csv laddas upp i vår första version
     if not file.filename or not file.filename.lower().endswith(".csv"):
+        logger.warning(
+            "Dataset upload validation failed filename=%s error_type=%s error_message=%s",
+            file.filename,
+            "HTTPException",
+            "Only CSV files are allowed.",
+        )
         raise HTTPException(
             status_code=400,
             detail="Only CSV files are allowed.",
@@ -103,22 +104,32 @@ def upload_dataset(file: UploadFile) -> dict:
 
         df = pd.read_csv(BytesIO(content))
 
-    except HTTPException:
+    except HTTPException as error:
+        logger.warning(
+            "Dataset upload validation failed filename=%s error_type=%s error_message=%s",
+            file.filename,
+            type(error).__name__,
+            str(error.detail),
+        )
         # Behåll statuskod + detail från våra egna valideringar.
         raise
     except pd.errors.EmptyDataError:  # får ej vara tom eller invalid
+        logger.warning(
+            "Dataset upload validation failed filename=%s error_type=%s error_message=%s",
+            file.filename,
+            "EmptyDataError",
+            "CSV file is empty or invalid.",
+        )
         raise HTTPException(
             status_code=400,
             detail="CSV file is empty or invalid.",
         )
     except Exception as error:  # fallback kod om den inte kunde läsa in csv filen
         logger.exception(
-            "CSV read failed",
-            extra={
-                "filename": file.filename,
-                "error_type": type(error).__name__,
-                "error_message": str(error),
-            },
+            "CSV read failed filename=%s error_type=%s error_message=%s",
+            file.filename,
+            type(error).__name__,
+            str(error),
         )
         raise HTTPException(
             status_code=400,
@@ -128,15 +139,6 @@ def upload_dataset(file: UploadFile) -> dict:
     validated_dataframe = validate_training_dataframe(df)
 
     save_dataset_to_db(validated_dataframe)
-
-    logger.info(
-        "Dataset upload succeeded",
-        extra={
-            "filename": file.filename,
-            "rows": len(validated_dataframe),
-            "column_count": len(validated_dataframe.columns),
-        },
-    )
 
     return {  # returnera hela vårt dataset
         "rows": len(validated_dataframe),
@@ -256,7 +258,8 @@ def get_dataset_insights() -> dict:
 
 
 def _build_best_sets_by_exercise(dataframe: pd.DataFrame) -> list[dict]:
-    top_index_per_exercise = dataframe.groupby("exercise")["estimated_1rm"].idxmax()
+    top_index_per_exercise = dataframe.groupby(
+        "exercise")["estimated_1rm"].idxmax()
 
     best_sets_dataframe = dataframe.loc[
         top_index_per_exercise,
@@ -288,7 +291,8 @@ def _build_best_sets_by_exercise(dataframe: pd.DataFrame) -> list[dict]:
 def _build_progression_by_exercise(dataframe: pd.DataFrame) -> list[dict]:
     # För varje övning och dag använder vi toppvärdet den dagen.
     daily_top_dataframe = (
-        dataframe.groupby(["exercise", "date_only"], as_index=False)["estimated_1rm"]
+        dataframe.groupby(["exercise", "date_only"],
+                          as_index=False)["estimated_1rm"]
         .max()
         .sort_values(["exercise", "date_only"])
     )
@@ -331,7 +335,8 @@ def _build_progression_by_exercise(dataframe: pd.DataFrame) -> list[dict]:
 
 def _build_training_frequency(dataframe: pd.DataFrame) -> dict:
     unique_training_days = (
-        dataframe["date_only"].drop_duplicates().sort_values().reset_index(drop=True)
+        dataframe["date_only"].drop_duplicates(
+        ).sort_values().reset_index(drop=True)
     )
 
     if unique_training_days.empty:
@@ -350,7 +355,8 @@ def _build_training_frequency(dataframe: pd.DataFrame) -> dict:
 
     day_span = int((latest_training_day - first_training_day).days)
     weeks_between = (day_span / 7) if day_span > 0 else 1
-    average_training_days_per_week = round(total_training_days / weeks_between, 1)
+    average_training_days_per_week = round(
+        total_training_days / weeks_between, 1)
 
     month_day_counts = (
         unique_training_days.dt.to_period("M")
@@ -374,7 +380,8 @@ def _build_training_frequency(dataframe: pd.DataFrame) -> dict:
 
 def _build_volume_by_month(dataframe: pd.DataFrame) -> list[dict]:
     monthly_volume_series = (
-        dataframe.assign(month=dataframe["date_only"].dt.to_period("M").astype(str))
+        dataframe.assign(
+            month=dataframe["date_only"].dt.to_period("M").astype(str))
         .groupby("month")["volume"]
         .sum()
         .sort_index()
