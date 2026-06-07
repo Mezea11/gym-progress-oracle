@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.chain.pipeline import gym_oracle_chain
-from app.schemas import AskRequest, AskResponse, PromptBuilderInput
+from app.schemas import AskRequest, AskResponse, PromptBuilderInput, UploadResponse
 from app.data import clear_dataset, get_dataset_insights, get_dataset_stats, upload_dataset
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -28,14 +28,14 @@ def root() -> FileResponse:
 # Health check för att se till att vår server är status 200 / ok
 
 
-@app.get("/health")
+@app.get("/health", response_model=dict[str, str])
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
 # Första version av vår upload, ska testa att vår CSV går att laddas upp och valideras korrekt
-@app.post("/data/upload")
-def upload_data(file: UploadFile = File(...)) -> dict:
+@app.post("/data/upload", response_model=UploadResponse)
+def upload_data(file: UploadFile = File(...)) -> UploadResponse:
     logger.info("Dataset upload started filename=%s", file.filename)
     result = upload_dataset(file)
     logger.info(
