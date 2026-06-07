@@ -342,7 +342,8 @@ def test_help_examples_match_supported_intents() -> None:
     assert compare_1rm.intent == "compare_metric"
     assert compare_1rm.metric == "estimated_1rm"
 
-    assert "deadlift" in [name.lower() for name in progression.referenced_exercises]
+    assert "deadlift" in [name.lower()
+                          for name in progression.referenced_exercises]
     assert heaviest_lift.metric == "heaviest_lift"
 
 
