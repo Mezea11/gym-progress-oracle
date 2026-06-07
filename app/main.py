@@ -5,6 +5,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.chain.pipeline import gym_oracle_chain
+from app.chain.query_interpreter import get_help_response, is_help_question
 from app.schemas import AskRequest, AskResponse, PromptBuilderInput, UploadResponse
 from app.data import clear_dataset, get_dataset_insights, get_dataset_stats, upload_dataset
 
@@ -71,6 +72,14 @@ def clear_data() -> dict[str, int | str]:
 def ask_ai(request: AskRequest) -> AskResponse:
     logger.info("AI question received question_length=%s",
                 len(request.question))
+
+    if is_help_question(request.question):
+        return AskResponse(
+            question=request.question,
+            answer=get_help_response(),
+            model="rule-based-help",
+        )
+
     try:
         stats = get_dataset_stats()
         insights = get_dataset_insights()

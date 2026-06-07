@@ -31,6 +31,47 @@ function setStatus(element, message, type = "") {
   }
 }
 
+function buildChatBody(text) {
+  const body = document.createElement("div");
+  body.className = "body";
+
+  const lines = String(text).split("\n");
+  let activeList = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      activeList = null;
+      continue;
+    }
+
+    if (line.startsWith("- ")) {
+      if (!activeList) {
+        activeList = document.createElement("ul");
+        body.appendChild(activeList);
+      }
+
+      const listItem = document.createElement("li");
+      listItem.textContent = line.slice(2);
+      activeList.appendChild(listItem);
+      continue;
+    }
+
+    activeList = null;
+
+    const paragraph = document.createElement("p");
+    paragraph.textContent = line;
+    body.appendChild(paragraph);
+  }
+
+  if (!body.childNodes.length) {
+    body.textContent = String(text);
+  }
+
+  return body;
+}
+
 function appendChatMessage(role, text) {
   const message = document.createElement("div");
   message.className = `message ${role}`;
@@ -39,8 +80,7 @@ function appendChatMessage(role, text) {
   label.className = "label";
   label.textContent = role === "user" ? "Du" : "AI";
 
-  const body = document.createElement("div");
-  body.textContent = text;
+  const body = buildChatBody(text);
 
   message.appendChild(label);
   message.appendChild(body);
@@ -84,7 +124,33 @@ function resetClearStatusMessage() {
 
 function getApiError(error, fallback) {
   if (error && typeof error === "object" && "detail" in error) {
-    return String(error.detail);
+    const detail = error.detail;
+
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((item) => {
+          if (typeof item === "string") {
+            return item;
+          }
+
+          if (item && typeof item === "object" && "msg" in item) {
+            return String(item.msg);
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      if (messages.length > 0) {
+        return messages.join(". ");
+      }
+    }
+
+    return fallback;
   }
 
   return fallback;

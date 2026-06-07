@@ -2,6 +2,50 @@ import re
 
 from app.schemas import QueryIntent
 
+HELP_INTENT_KEYWORDS = (
+    "hjälp",
+    "help",
+    "vad kan du göra",
+    "vad kan du hjälpa mig med",
+    "hur använder jag dig",
+    "kommandon",
+    "faq",
+    "guide",
+)
+
+HELP_RESPONSE = (
+    "Jag kan analysera din uppladdade träningsdata.\n\n"
+    "Exempel:\n"
+    "- Högst 1RM: \"Vilken övning har högst estimerad 1RM?\"\n"
+    "- Lägst 1RM: \"Vilken övning har lägst estimerad 1RM?\"\n"
+    "- Högst total volym: \"Vilken övning har högst total volym?\"\n"
+    "- Lägst total volym: \"Vilken övning har lägst total volym?\"\n"
+    "- Tyngst lyft: \"Vad är mitt tyngsta lyft?\"\n"
+    "- Ranking: \"Rangordna övningarna efter estimerad 1RM.\"\n"
+    "- Differens på 1RM: \"Hur stor är skillnaden i estimerad 1RM mellan squat och deadlift?\"\n"
+    "- Jämförelse: \"Jämför estimerad 1RM mellan squat och deadlift.\"\n"
+    "- Progression: \"Vad är min progression i marklyft?\"\n"
+    "- Träningsfrekvens: \"Hur ofta tränar jag?\"\n"
+    "- Bästa sets: \"Visa best sets by exercise\"\n"
+    "- Volym per månad: \"Visa total volym per månad\""
+)
+
+
+def is_help_question(question: str) -> bool:
+    interpreter = QueryInterpreter()
+    normalized_question = interpreter._normalize_text(question)
+    return any(
+        interpreter._contains_phrase(
+            normalized_question,
+            interpreter._normalize_text(keyword),
+        )
+        for keyword in HELP_INTENT_KEYWORDS
+    )
+
+
+def get_help_response() -> str:
+    return HELP_RESPONSE
+
 
 class QueryInterpreter:
     """
@@ -56,6 +100,8 @@ class QueryInterpreter:
             ],
             "heaviest_lift": [
                 "tyngst",
+                "tyngsta",
+                "tyngsta lyft",
                 "heaviest",
                 "heaviest lift",
                 "maxvikt",

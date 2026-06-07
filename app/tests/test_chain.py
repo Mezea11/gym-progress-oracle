@@ -267,6 +267,23 @@ def test_response_parser_handles_training_frequency_prompt_from_insights() -> No
     assert "3" in parsed.answer
 
 
+def test_response_parser_forces_fallback_for_malformed_training_frequency_answer() -> None:
+    parser = ResponseParser()
+
+    model_output = LLMRunnerOutput(
+        question="Hur ofta tränar jag?",
+        raw_output="Du skall vara inte höger av fakt-skrev.",
+        model="HuggingFaceTB/SmolLM2-135M-Instruct",
+        facts_summary="irrelevant",
+        stats=_sample_stats_with_insights(),
+    )
+
+    parsed = parser.invoke(model_output)
+
+    assert "träningsdagar" in parsed.answer
+    assert "dagar per vecka" in parsed.answer
+
+
 def test_response_parser_defaults_compare_without_metric_to_estimated_1rm() -> None:
     parser = ResponseParser()
 
@@ -282,6 +299,51 @@ def test_response_parser_defaults_compare_without_metric_to_estimated_1rm() -> N
 
     assert "har högre estimerad 1RM" in parsed.answer
     assert "Deadlift" in parsed.answer
+
+
+def test_help_examples_match_supported_intents() -> None:
+    interpreter = QueryInterpreter()
+    available_exercises = ["squat", "deadlift", "bench press", "weighted chin"]
+
+    highest_1rm = interpreter.interpret(
+        question="Vilken övning har högst estimerad 1RM?",
+        available_exercises=available_exercises,
+    )
+    highest_volume = interpreter.interpret(
+        question="Vilken övning har högst total volym?",
+        available_exercises=available_exercises,
+    )
+    rank_1rm = interpreter.interpret(
+        question="Rangordna övningarna efter estimerad 1RM.",
+        available_exercises=available_exercises,
+    )
+    compare_1rm = interpreter.interpret(
+        question="Jämför estimerad 1RM mellan squat och deadlift.",
+        available_exercises=available_exercises,
+    )
+    progression = interpreter.interpret(
+        question="Hur har deadlift utvecklats över tid?",
+        available_exercises=available_exercises,
+    )
+    heaviest_lift = interpreter.interpret(
+        question="Vad är mitt tyngsta lyft?",
+        available_exercises=available_exercises,
+    )
+
+    assert highest_1rm.intent == "highest_metric"
+    assert highest_1rm.metric == "estimated_1rm"
+
+    assert highest_volume.intent == "highest_metric"
+    assert highest_volume.metric == "total_volume"
+
+    assert rank_1rm.intent == "rank_metric"
+    assert rank_1rm.metric == "estimated_1rm"
+
+    assert compare_1rm.intent == "compare_metric"
+    assert compare_1rm.metric == "estimated_1rm"
+
+    assert "deadlift" in [name.lower() for name in progression.referenced_exercises]
+    assert heaviest_lift.metric == "heaviest_lift"
 
 
 def test_llm_runner_handles_generator_exception_and_parser_fallbacks() -> None:
@@ -308,3 +370,24 @@ def test_llm_runner_handles_generator_exception_and_parser_fallbacks() -> None:
 
     assert "Estimerad 1RM i Deadlift" in parsed.answer
     assert "186.0 kg" in parsed.answer
+
+
+def test_response_parser_compact_fallback_for_unknown_question() -> None:
+    parser = ResponseParser()
+
+    model_output = LLMRunnerOutput(
+        question="Hej",
+        raw_output="Arbeta i denna ordning:\nMetrikdefinitioner:\n...",
+        model="HuggingFaceTB/SmolLM2-135M-Instruct",
+        facts_summary="irrelevant",
+        stats=_sample_stats(),
+    )
+
+    parsed = parser.invoke(model_output)
+
+    assert "Jag kunde tyvärr inte förstå din fråga" in parsed.answer
+    assert "verifierad data från dina träningsloggar" in parsed.answer
+    assert "Antal loggade set/rader" in parsed.answer
+    assert "Övningar i datan" not in parsed.answer
+    assert "Estimerad 1RM per övning" not in parsed.answer
+    assert "Total volym per övning" not in parsed.answer

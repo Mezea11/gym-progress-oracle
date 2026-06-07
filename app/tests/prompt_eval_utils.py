@@ -7,7 +7,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 
 
-FALLBACK_MARKER = "Modellen kunde inte generera ett tillförlitligt svar"
+FALLBACK_MARKER = "Jag kunde tyvärr inte förstå din fråga"
 PROMPT_SUITE_PATH = Path(__file__).with_name("prompt_suite.json")
 PROMPT_THRESHOLDS_PATH = Path(__file__).with_name("prompt_thresholds.json")
 

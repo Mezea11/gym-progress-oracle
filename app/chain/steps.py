@@ -230,6 +230,12 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
         if not answer:
             answer = self._cleanup_raw_output(raw_output)
 
+        if self._should_force_fallback_for_supported_question(
+            question=input_data.question,
+            answer=answer,
+        ):
+            answer = ""
+
         if self._model_failed(answer, input_data.facts_summary):
             logger.warning(
                 "Response parser fallback used question_length=%s",
@@ -249,6 +255,32 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
             answer=answer,
             model=input_data.model,
         )
+
+    def _should_force_fallback_for_supported_question(self, question: str, answer: str) -> bool:
+        normalized_question = self._normalize_text(question)
+        normalized_answer = self._normalize_text(answer)
+
+        training_frequency_signals = {
+            "hur ofta",
+            "training frequency",
+            "training_frequency",
+            "traningsfrekvens",
+        }
+
+        if any(signal in normalized_question for signal in training_frequency_signals):
+            expected_answer_signals = {
+                "traningsdag",
+                "dagar per vecka",
+                "vecka",
+                "snitt",
+            }
+
+            return not any(
+                signal in normalized_answer
+                for signal in expected_answer_signals
+            )
+
+        return False
 
     def _extract_between_markers(self, raw_output: str) -> str:
         pattern = re.compile(
@@ -506,11 +538,51 @@ class ResponseParser(Runnable[LLMRunnerOutput, ResponseParserOutput]):
                 )
 
         # Sista utvägen om vi inte med säkerhet kan svara på intent.
+        compact_summary = self._build_compact_verified_summary(stats)
         return (
-            "Modellen kunde inte generera ett tillförlitligt svar den här gången. "
-            "Verifierade fakta från datan:\n"
-            f"{facts_summary}"
+            "Jag kunde tyvärr inte förstå din fråga, försök gärna igen. "
+            "Här har du verifierad data från dina träningsloggar:\n"
+            f"{compact_summary}"
         )
+
+    def _build_compact_verified_summary(self, stats: dict) -> str:
+        rows = stats.get("rows", 0)
+        exercise_count = stats.get("exercise_count", 0)
+
+        heaviest_lift = stats.get("heaviest_lift", {})
+        total_volume = stats.get("total_volume_by_exercise", {})
+        estimated_1rm = stats.get("estimated_1rm_by_exercise", {})
+
+        lines = [
+            f"- Antal loggade set/rader: {rows}",
+            f"- Antal unika övningar: {exercise_count}",
+        ]
+
+        if heaviest_lift:
+            lines.append(
+                "- Tyngsta lyft: "
+                f"{heaviest_lift.get('exercise')} "
+                f"{float(heaviest_lift.get('weight', 0)):.1f} kg x "
+                f"{int(heaviest_lift.get('reps', 0))} reps"
+            )
+
+        if total_volume:
+            top_volume_exercise = max(total_volume, key=total_volume.get)
+            top_volume_value = total_volume[top_volume_exercise]
+            lines.append(
+                "- Högst total volym: "
+                f"{top_volume_exercise} ({float(top_volume_value):.1f} kg)"
+            )
+
+        if estimated_1rm:
+            top_1rm_exercise = max(estimated_1rm, key=estimated_1rm.get)
+            top_1rm_value = estimated_1rm[top_1rm_exercise]
+            lines.append(
+                "- Högst estimerad 1RM: "
+                f"{top_1rm_exercise} ({float(top_1rm_value):.1f} kg)"
+            )
+
+        return "\n".join(lines)
 
     def _format_metric_map(self, metric_map: dict[str, float], unit: str) -> str:
         sorted_items = sorted(metric_map.items(),

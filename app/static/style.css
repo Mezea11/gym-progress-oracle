@@ -483,6 +483,27 @@ pre {
   text-transform: uppercase;
 }
 
+.message .body {
+  white-space: pre-line;
+}
+
+.message .body p {
+  margin: 0;
+}
+
+.message .body p + p {
+  margin-top: 0.35rem;
+}
+
+.message .body ul {
+  margin: 0.45rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.message .body li + li {
+  margin-top: 0.2rem;
+}
+
 .footnote {
   text-align: center;
   color: #7f95b2;

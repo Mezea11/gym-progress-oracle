@@ -249,6 +249,33 @@ def test_ask_ai_uses_mocked_chain_result(client: TestClient, monkeypatch: pytest
     }
 
 
+def test_ai_ask_help_without_dataset_returns_help_response(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.main as main_module
+
+    def fail_if_called(_):
+        raise AssertionError("LLM chain should not run for help questions")
+
+    monkeypatch.setattr(main_module.gym_oracle_chain, "invoke", fail_if_called)
+
+    response = client.post("/ai/ask", json={"question": "hjälp"})
+
+    assert response.status_code == 200
+    assert "Jag kan analysera" in response.json()["answer"]
+    assert "Högst 1RM" in response.json()["answer"]
+    assert "Progression" in response.json()["answer"]
+    assert response.json()["model"] == "rule-based-help"
+
+
+def test_ai_ask_help_is_case_insensitive(client: TestClient) -> None:
+    response = client.post("/ai/ask", json={"question": " HELP "})
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "rule-based-help"
+
+
 def test_ai_ask_without_dataset_returns_400(client: TestClient) -> None:
     response = client.post("/ai/ask", json={"question": "Vad är min 1RM?"})
 

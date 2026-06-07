@@ -99,9 +99,9 @@
     "prompt": "Vad är min VO2max?",
     "allow_fallback": true,
     "must_include_any": [
-      ["datan"],
-      ["verifierade fakta"],
-      ["modellen kunde inte"]
+      ["jag kunde"],
+      ["verifierad data"],
+      ["träningsloggar"]
     ]
   }
 ]
